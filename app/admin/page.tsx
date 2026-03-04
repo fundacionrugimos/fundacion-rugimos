@@ -1,15 +1,27 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 
 export default function AdminDashboard() {
 
+const router = useRouter()
+
 const [pendentes,setPendentes] = useState(0)
 
 useEffect(()=>{
+
+const admin = localStorage.getItem("admin_logado")
+
+if(!admin){
+router.push("/admin/login")
+return
+}
+
 carregarPendentes()
+
 },[])
 
 const carregarPendentes = async () => {
