@@ -35,11 +35,28 @@ if(data) setPendentes(data.length)
 
 }
 
+const cerrarSesion = () => {
+
+localStorage.removeItem("admin_logado")
+
+router.push("/admin/login")
+
+}
+
 return(
 
 <div className="min-h-screen bg-[#02686A] flex flex-col items-center">
 
-<div className="mt-20 mb-20 flex justify-center">
+<div className="w-full flex justify-end p-6">
+<button
+onClick={cerrarSesion}
+className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90"
+>
+Cerrar sesión
+</button>
+</div>
+
+<div className="mt-10 mb-20 flex justify-center">
 <img src="/logo.png" className="h-40"/>
 </div>
 
