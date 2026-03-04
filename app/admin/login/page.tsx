@@ -12,7 +12,7 @@ const [senha,setSenha] = useState("")
 
 const entrar = () => {
 
-if(email === "[admin@rugimos.com](mailto:admin@rugimos.com)" && senha === "rugimos123"){
+if(email === "admin@rugimos.com" && senha === "rugimos123"){
 
 localStorage.setItem("admin_logado","true")
 
@@ -67,10 +67,11 @@ className="border p-3 rounded-lg w-full mb-4"
 <button
 onClick={entrar}
 className="bg-[#f47c3c] text-white w-full py-3 rounded-lg font-bold hover:opacity-90"
-
 >
 
-Entrar </button>
+Entrar
+
+</button>
 
 </div>
 
