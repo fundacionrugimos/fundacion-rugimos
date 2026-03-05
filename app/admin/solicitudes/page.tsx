@@ -70,7 +70,7 @@ if(nuevoEstado === "Aprobado"){
 
 const { data:clinicaData,error:clinicaError } = await supabase
 .from("clinicas")
-.select("id")
+.select("*")
 .eq("zona",solicitud.ubicacion)
 .eq("ativa",true)
 .limit(1)
@@ -133,6 +133,48 @@ setLoadingId(null)
 return
 }
 
+const nombreClinica = clinicaData.nombre || "Clínica asignada"
+const direccionClinica = clinicaData.direccion || "Dirección disponible el día de la cita"
+
+const mensaje = `
+🐾 *FUNDACIÓN RUGIMOS* 🐾
+
+¡Tu solicitud fue *APROBADA*! ✅
+
+Tu mascota tiene un cupo confirmado para la campaña de esterilización.
+
+🔖 *Código Rugimos*
+${codigoGenerado}
+
+🐶 *Mascota*
+${solicitud.nombre_animal} (${solicitud.especie})
+
+🏥 *Clínica Veterinaria*
+${nombreClinica}
+
+📍 *Dirección*
+${direccionClinica}
+
+📋 *INSTRUCCIONES IMPORTANTES*
+
+• Ayuno de comida: 8 horas  
+• Ayuno de agua: 4 horas  
+• Llevar manta o toalla  
+• Llevar carnet o documento  
+• Llegar 15 minutos antes  
+
+⚠️ Si no puedes asistir, avísanos para liberar el cupo.
+
+💚 Gracias por apoyar la esterilización responsable
+Fundación Rugimos
+`
+
+const telefono = solicitud.celular.replace(/\D/g,"")
+
+const url = `https://wa.me/591${telefono}?text=${encodeURIComponent(mensaje)}`
+
+window.open(url,"_blank")
+
 }
 
 await fetchSolicitudes()
@@ -182,8 +224,6 @@ className="bg-white rounded-xl shadow-md p-6 border border-gray-200"
 <p><strong>Peso:</strong> {s.peso} kg</p>
 
 </div>
-
-{/* MINIATURAS */}
 
 <div className="flex gap-2 mt-4">
 
@@ -258,9 +298,6 @@ className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm hover:opacity-90
 ))}
 
 </div>
-
-
-{/* MODAL FOTO GRANDE */}
 
 {fotoSeleccionada && (
 
