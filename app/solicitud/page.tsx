@@ -1,4 +1,5 @@
 "use client"
+
 import { useState } from "react"
 import { supabase } from "@/lib/supabase"
 
@@ -140,8 +141,8 @@ return(
 
 <div className="bg-white rounded-2xl shadow-xl p-10 max-w-xl text-center">
 
-<h2 className="text-2xl font-bold text-green-600 mb-4">  
-✅ Solicitud enviada correctamente  
+<h2 className="text-2xl font-bold text-green-600 mb-4">
+✅ Solicitud enviada correctamente
 </h2>
 
 <p className="text-gray-700 leading-relaxed">
@@ -162,10 +163,10 @@ Su ayuda es muy importante. El programa es gratuito, pero con cada aporte podrem
 
 <div className="flex justify-center mt-6">
 
-<img  
-src="/qr.png"  
-alt="QR Donación Fundación Rugimos"  
-className="w-48 h-48"  
+<img
+src="/qr.png"
+alt="QR Donación Fundación Rugimos"
+className="w-48 h-48"
 />
 
 </div>
@@ -186,8 +187,8 @@ return(
 
 <div className="bg-white rounded-2xl shadow-lg p-6">
 
-<h2 className="text-xl font-bold text-gray-900 mb-4">  
-👤 Datos del Responsable  
+<h2 className="text-xl font-bold text-gray-900 mb-4">
+👤 Datos del Responsable
 </h2>
 
 <div className="grid md:grid-cols-3 gap-4 mb-4">
@@ -211,23 +212,33 @@ onInput={(e:any)=>e.target.value=e.target.value.replace(/\D/g,'')}
 className="border border-gray-300 p-3 rounded-lg text-gray-800"
 />
 
+<div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+
+<span className="bg-gray-100 px-3 text-gray-700 font-medium">
++591
+</span>
+
 <input
 name="celular"
-placeholder="Celular"
+placeholder="71234567"
 required
 maxLength={8}
 inputMode="numeric"
-onInput={(e:any)=>e.target.value=e.target.value.replace(/\D/g,'')}
-className="border border-gray-300 p-3 rounded-lg text-gray-800"
+onInput={(e:any)=>{
+e.target.value=e.target.value.replace(/\D/g,'').slice(0,8)
+}}
+className="flex-1 p-3 outline-none"
 />
+
+</div>
 
 <select name="ubicacion" required className="border border-gray-300 p-3 rounded-lg text-gray-800 md:col-span-2">
 
-<option value="">Seleccionar zona</option>  
-<option value="Norte">Norte</option>  
-<option value="Centro-Norte">Centro-Norte</option>  
-<option value="Sur">Sur</option>  
-<option value="Oeste">Oeste</option>  
+<option value="">Seleccionar zona</option>
+<option value="Norte">Norte</option>
+<option value="Centro-Norte">Centro-Norte</option>
+<option value="Sur">Sur</option>
+<option value="Oeste">Oeste</option>
 <option value="Este">Este</option>
 
 </select>
@@ -238,17 +249,17 @@ className="border border-gray-300 p-3 rounded-lg text-gray-800"
 
 <div className="bg-white rounded-2xl shadow-lg p-6">
 
-<h2 className="text-xl font-bold text-gray-900 mb-4">  
-🐾 Datos del Animal  
+<h2 className="text-xl font-bold text-gray-900 mb-4">
+🐾 Datos del Animal
 </h2>
 
 <div className="grid md:grid-cols-2 gap-4">
 
-<input  
-name="nombre_animal"  
-placeholder="Nombre del animal"  
-required  
-className="border border-gray-300 p-3 rounded-lg text-gray-800"  
+<input
+name="nombre_animal"
+placeholder="Nombre del animal"
+required
+className="border border-gray-300 p-3 rounded-lg text-gray-800"
 />
 
 <select name="especie" required className="border border-gray-300 p-3 rounded-lg text-gray-800">
@@ -295,8 +306,8 @@ className="border border-gray-300 p-3 rounded-lg text-gray-800"
 
 <div className="bg-white rounded-2xl shadow-lg p-6">
 
-<h2 className="text-xl font-bold text-gray-900 mb-4">  
-📸 Subir Fotos (Obligatorio)  
+<h2 className="text-xl font-bold text-gray-900 mb-4">
+📸 Subir Fotos (Obligatorio)
 </h2>
 
 <div className="grid md:grid-cols-3 gap-4">
@@ -375,8 +386,8 @@ onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewCarnet)}
 
 </div>
 
-<p className="text-sm text-gray-500 mt-2">  
-Formatos permitidos: JPG, PNG, WEBP — Máximo 5MB cada imagen.  
+<p className="text-sm text-gray-500 mt-2">
+Formatos permitidos: JPG, PNG, WEBP — Máximo 5MB cada imagen.
 </p>
 
 </div>
