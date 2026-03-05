@@ -18,32 +18,32 @@ type Solicitud = {
   estado: string
   ci: string | null
   created_at: string
-
   foto_frente: string | null
   foto_lado: string | null
   foto_carnet: string | null
 }
 
-export default function AdminSolicitudes() {
+export default function AdminSolicitudes(){
 
 const [solicitudes,setSolicitudes] = useState<Solicitud[]>([])
 const [loadingId,setLoadingId] = useState<string | null>(null)
 const [fotoSeleccionada,setFotoSeleccionada] = useState<string | null>(null)
+const [whatsappData,setWhatsappData] = useState<{telefono:string,mensaje:string}|null>(null)
 
 useEffect(()=>{
 fetchSolicitudes()
 },[])
 
-const fetchSolicitudes = async () => {
+const fetchSolicitudes = async()=>{
 
-const { data,error } = await supabase
+const {data,error} = await supabase
 .from("solicitudes")
 .select("*")
 .eq("estado","Pendiente")
 .order("created_at",{ascending:false})
 
 if(error){
-console.error("Error cargando solicitudes:",error)
+console.error(error)
 return
 }
 
@@ -51,13 +51,25 @@ if(data) setSolicitudes(data)
 
 }
 
-const cambiarEstado = async (solicitud:Solicitud,nuevoEstado:string) => {
+const enviarWhatsapp = ()=>{
+
+if(!whatsappData) return
+
+const telefono = whatsappData.telefono.replace(/\D/g,"")
+
+const url = `https://wa.me/591${telefono}?text=${encodeURIComponent(whatsappData.mensaje)}`
+
+window.open(url,"_blank")
+
+}
+
+const cambiarEstado = async(solicitud:Solicitud,nuevoEstado:string)=>{
 
 setLoadingId(solicitud.id)
 
-const { error:updateError } = await supabase
+const {error:updateError} = await supabase
 .from("solicitudes")
-.update({ estado:nuevoEstado })
+.update({estado:nuevoEstado})
 .eq("id",solicitud.id)
 
 if(updateError){
@@ -68,7 +80,7 @@ return
 
 if(nuevoEstado === "Aprobado"){
 
-const { data:clinicaData,error:clinicaError } = await supabase
+const {data:clinicaData,error:clinicaError} = await supabase
 .from("clinicas")
 .select("*")
 .eq("zona",solicitud.ubicacion)
@@ -77,18 +89,18 @@ const { data:clinicaData,error:clinicaError } = await supabase
 .single()
 
 if(clinicaError || !clinicaData){
-alert("No se encontró clínica activa para esta zona")
+alert("No se encontró clínica activa")
 setLoadingId(null)
 return
 }
 
 const clinicaId = clinicaData.id
 
-const { data:horarioId,error:reservaError } = await supabase
-.rpc("reservar_vaga",{ p_clinica_id:clinicaId })
+const {data:horarioId,error:reservaError} = await supabase
+.rpc("reservar_vaga",{p_clinica_id:clinicaId})
 
 if(reservaError || !horarioId){
-alert("No hay cupos disponibles en esta clínica")
+alert("No hay cupos disponibles")
 setLoadingId(null)
 return
 }
@@ -98,10 +110,10 @@ const codigoGenerado =
 
 await supabase
 .from("solicitudes")
-.update({ codigo:codigoGenerado })
+.update({codigo:codigoGenerado})
 .eq("id",solicitud.id)
 
-const { error:insertError } = await supabase
+await supabase
 .from("registros")
 .insert([
 {
@@ -119,66 +131,44 @@ zona:solicitud.ubicacion,
 estado:"Pendiente",
 clinica_id:clinicaId,
 horario_id:horarioId,
-
-foto_frente: solicitud.foto_frente,
-foto_lado: solicitud.foto_lado,
-foto_carnet: solicitud.foto_carnet
+foto_frente:solicitud.foto_frente,
+foto_lado:solicitud.foto_lado,
+foto_carnet:solicitud.foto_carnet
 }
 ])
 
-if(insertError){
-console.error(insertError)
-alert("Error al insertar en registros")
-setLoadingId(null)
-return
-}
-
-const nombreClinica = clinicaData.nombre || "Clínica asignada"
-const direccionClinica = clinicaData.direccion || "Dirección disponible el día de la cita"
-
 const mensaje = `
-🐾 *FUNDACIÓN RUGIMOS* 🐾
+🐾 FUNDACIÓN RUGIMOS 🐾
 
-¡Tu solicitud fue *APROBADA*! ✅
+Tu solicitud fue APROBADA ✅
 
-Tu mascota tiene un cupo confirmado para la campaña de esterilización.
-
-🔖 *Código Rugimos*
+Código Rugimos:
 ${codigoGenerado}
 
-🐶 *Mascota*
+Mascota:
 ${solicitud.nombre_animal} (${solicitud.especie})
 
-🏥 *Clínica Veterinaria*
-${nombreClinica}
+Clínica:
+${clinicaData.nombre}
 
-📍 *Dirección*
-${direccionClinica}
+Dirección:
+${clinicaData.direccion}
 
-📋 *INSTRUCCIONES IMPORTANTES*
+INSTRUCCIONES
 
-• Ayuno de comida: 8 horas  
-• Ayuno de agua: 4 horas  
-• Llevar manta o toalla  
-• Llevar carnet o documento  
-• Llegar 15 minutos antes  
+• Ayuno comida: 8 horas
+• Ayuno agua: 4 horas
+• Llevar manta
+• Llegar 15 min antes
 
-⚠️ Si no puedes asistir, avísanos para liberar el cupo.
-
-💚 Gracias por apoyar la esterilización responsable
-Fundación Rugimos
+Gracias por apoyar la esterilización responsable 💚
 `
 
-const telefono = solicitud.celular.replace(/\D/g,"")
+setWhatsappData({
+telefono:solicitud.celular,
+mensaje:mensaje
+})
 
-const url = `https://wa.me/591${telefono}?text=${encodeURIComponent(mensaje)}`
-
-const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-
-if(isMobile){
-window.location.href = url
-}else{
-window.open(url,"_blank")
 }
 
 await fetchSolicitudes()
@@ -186,43 +176,57 @@ setLoadingId(null)
 
 }
 
-return (
+return(
 
-<div className="min-h-screen bg-gray-100 p-8">
+<div className="min-h-screen bg-gray-100 p-6">
 
-<h1 className="text-3xl font-bold mb-8 text-gray-800">
+<h1 className="text-3xl font-bold mb-8 text-gray-900">
 Solicitudes Recibidas
 </h1>
 
-{solicitudes.length === 0 && (
-<p className="text-gray-500">
-No hay solicitudes aún.
+{whatsappData &&(
+
+<div className="bg-green-100 border border-green-300 p-4 rounded-lg mb-6 flex justify-between items-center">
+
+<p className="text-green-900 font-semibold">
+Registro aprobado. Enviar confirmación por WhatsApp.
 </p>
+
+<button
+onClick={enviarWhatsapp}
+className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+>
+Enviar WhatsApp
+</button>
+
+</div>
+
 )}
 
-<div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
 {solicitudes.map((s)=>(
 
 <div
 key={s.id}
-className="bg-white rounded-xl shadow-md p-6 border border-gray-200"
+className="bg-white rounded-xl shadow-lg p-6 border border-gray-200"
 >
 
-<p className="text-sm text-gray-500 mb-2">
+<p className="text-xs text-gray-600 mb-2 font-mono">
 {s.codigo}
 </p>
 
-<h2 className="text-lg font-semibold mb-3">
+<h2 className="text-lg font-semibold mb-3 text-gray-900">
 {s.nombre_completo}
 </h2>
 
-<div className="text-sm space-y-1">
+<div className="text-sm text-gray-700 space-y-1">
 
 <p><strong>CI:</strong> {s.ci || "No especificado"}</p>
 <p><strong>Celular:</strong> {s.celular}</p>
-<p><strong>Ubicación:</strong> {s.ubicacion}</p>
-<p><strong>Animal:</strong> {s.nombre_animal} ({s.especie})</p>
+<p><strong>Zona:</strong> {s.ubicacion}</p>
+<p><strong>Animal:</strong> {s.nombre_animal}</p>
+<p><strong>Especie:</strong> {s.especie}</p>
 <p><strong>Sexo:</strong> {s.sexo}</p>
 <p><strong>Edad:</strong> {s.edad}</p>
 <p><strong>Peso:</strong> {s.peso} kg</p>
@@ -231,71 +235,51 @@ className="bg-white rounded-xl shadow-md p-6 border border-gray-200"
 
 <div className="flex gap-2 mt-4">
 
-{s.foto_frente && (
+{s.foto_frente &&(
 <img
 src={s.foto_frente}
-className="w-16 h-16 object-cover rounded-md border cursor-pointer hover:scale-110 transition"
+className="w-20 h-20 object-cover rounded-md border cursor-pointer hover:scale-105 transition"
 onClick={()=>setFotoSeleccionada(s.foto_frente)}
 />
 )}
 
-{s.foto_lado && (
+{s.foto_lado &&(
 <img
 src={s.foto_lado}
-className="w-16 h-16 object-cover rounded-md border cursor-pointer hover:scale-110 transition"
+className="w-20 h-20 object-cover rounded-md border cursor-pointer hover:scale-105 transition"
 onClick={()=>setFotoSeleccionada(s.foto_lado)}
 />
 )}
 
-{s.foto_carnet && (
+{s.foto_carnet &&(
 <img
 src={s.foto_carnet}
-className="w-16 h-16 object-cover rounded-md border cursor-pointer hover:scale-110 transition"
+className="w-20 h-20 object-cover rounded-md border cursor-pointer hover:scale-105 transition"
 onClick={()=>setFotoSeleccionada(s.foto_carnet)}
 />
 )}
 
 </div>
 
-<div className="mt-3">
-
-<span
-className={`px-3 py-1 rounded-full text-xs font-semibold ${
-s.estado === "Pendiente"
-? "bg-yellow-100 text-yellow-800"
-: s.estado === "Aprobado"
-? "bg-green-100 text-green-800"
-: "bg-red-100 text-red-800"
-}`}
->
-{s.estado}
-</span>
-
-</div>
-
-{s.estado === "Pendiente" && (
-
 <div className="flex gap-3 mt-6">
 
 <button
-disabled={loadingId === s.id}
+disabled={loadingId===s.id}
 onClick={()=>cambiarEstado(s,"Aprobado")}
-className="flex-1 bg-green-500 text-white py-2 rounded-lg text-sm hover:opacity-90 disabled:opacity-50"
+className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
 >
-{loadingId === s.id ? "Procesando..." : "Aprobar"}
+{loadingId===s.id?"Procesando":"Aprobar"}
 </button>
 
 <button
-disabled={loadingId === s.id}
+disabled={loadingId===s.id}
 onClick={()=>cambiarEstado(s,"Rechazado")}
-className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm hover:opacity-90 disabled:opacity-50"
+className="flex-1 bg-red-600 text-white py-2 rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
 >
-{loadingId === s.id ? "Procesando..." : "Rechazar"}
+Rechazar
 </button>
 
 </div>
-
-)}
 
 </div>
 
@@ -303,7 +287,7 @@ className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm hover:opacity-90
 
 </div>
 
-{fotoSeleccionada && (
+{fotoSeleccionada &&(
 
 <div
 className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
