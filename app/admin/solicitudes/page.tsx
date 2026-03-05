@@ -4,23 +4,23 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 
 type Solicitud = {
-  id: string
-  codigo: string
-  nombre_completo: string
-  celular: string
-  ubicacion: string
-  nombre_animal: string
-  especie: string
-  sexo: string
-  edad: string
-  peso: string
-  tipo_animal: string
-  estado: string
-  ci: string | null
-  created_at: string
-  foto_frente: string | null
-  foto_lado: string | null
-  foto_carnet: string | null
+id: string
+codigo: string
+nombre_completo: string
+celular: string
+ubicacion: string
+nombre_animal: string
+especie: string
+sexo: string
+edad: string
+peso: string
+tipo_animal: string
+estado: string
+ci: string | null
+created_at: string
+foto_frente: string | null
+foto_lado: string | null
+foto_carnet: string | null
 }
 
 export default function AdminSolicitudes(){
@@ -96,8 +96,8 @@ return
 
 const clinicaId = clinicaData.id
 
-const {data:horarioId,error:reservaError} = await supabase
-.rpc("reservar_vaga",{p_clinica_id:clinicaId})
+const {data:horarioId,error:reservaError} =
+await supabase.rpc("reservar_vaga",{p_clinica_id:clinicaId})
 
 if(reservaError || !horarioId){
 alert("No hay cupos disponibles")
@@ -105,17 +105,19 @@ setLoadingId(null)
 return
 }
 
-const {data:horarioData,error:horarioError} = await supabase
-.from("horarios")
+const {data:horario,error:horarioError} = await supabase
+.from("horarios_clinica")
 .select("hora")
 .eq("id",horarioId)
 .single()
 
-if(horarioError || !horarioData){
+if(horarioError || !horario){
 alert("Error obteniendo horario")
 setLoadingId(null)
 return
 }
+
+const horaAsignada = horario.hora
 
 const codigoGenerado =
 `RUG-${new Date().getFullYear()}-${Math.floor(100000 + Math.random()*900000)}`
@@ -143,7 +145,7 @@ zona:solicitud.ubicacion,
 estado:"Pendiente",
 clinica_id:clinicaId,
 horario_id:horarioId,
-hora:horarioData.hora,
+hora:horaAsignada,
 foto_frente:solicitud.foto_frente,
 foto_lado:solicitud.foto_lado,
 foto_carnet:solicitud.foto_carnet
@@ -168,7 +170,7 @@ Dirección:
 ${clinicaData.direccion}
 
 Hora de llegada:
-${horarioData.hora}
+${horaAsignada}
 
 INSTRUCCIONES
 
@@ -211,9 +213,10 @@ Registro aprobado. Enviar confirmación por WhatsApp.
 <button
 onClick={enviarWhatsapp}
 className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+
 >
-Enviar WhatsApp
-</button>
+
+Enviar WhatsApp </button>
 
 </div>
 
@@ -282,17 +285,19 @@ onClick={()=>setFotoSeleccionada(s.foto_carnet)}
 disabled={loadingId===s.id}
 onClick={()=>cambiarEstado(s,"Aprobado")}
 className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
+
 >
-{loadingId===s.id?"Procesando":"Aprobar"}
-</button>
+
+{loadingId===s.id?"Procesando":"Aprobar"} </button>
 
 <button
 disabled={loadingId===s.id}
 onClick={()=>cambiarEstado(s,"Rechazado")}
 className="flex-1 bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50"
+
 >
-Rechazar
-</button>
+
+Rechazar </button>
 
 </div>
 
