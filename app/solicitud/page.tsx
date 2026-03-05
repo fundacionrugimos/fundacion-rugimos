@@ -140,8 +140,8 @@ return(
 
 <div className="bg-white rounded-2xl shadow-xl p-10 max-w-xl text-center">
 
-<h2 className="text-2xl font-bold text-green-600 mb-4">
-✅ Solicitud enviada correctamente
+<h2 className="text-2xl font-bold text-green-600 mb-4">  
+✅ Solicitud enviada correctamente  
 </h2>
 
 <p className="text-gray-700 leading-relaxed">
@@ -162,10 +162,10 @@ Su ayuda es muy importante. El programa es gratuito, pero con cada aporte podrem
 
 <div className="flex justify-center mt-6">
 
-<img
-src="/qr.png"
-alt="QR Donación Fundación Rugimos"
-className="w-48 h-48"
+<img  
+src="/qr.png"  
+alt="QR Donación Fundación Rugimos"  
+className="w-48 h-48"  
 />
 
 </div>
@@ -186,8 +186,8 @@ return(
 
 <div className="bg-white rounded-2xl shadow-lg p-6">
 
-<h2 className="text-xl font-bold text-gray-900 mb-4">
-👤 Datos del Responsable
+<h2 className="text-xl font-bold text-gray-900 mb-4">  
+👤 Datos del Responsable  
 </h2>
 
 <div className="grid md:grid-cols-3 gap-4 mb-4">
@@ -223,11 +223,11 @@ className="border border-gray-300 p-3 rounded-lg text-gray-800"
 
 <select name="ubicacion" required className="border border-gray-300 p-3 rounded-lg text-gray-800 md:col-span-2">
 
-<option value="">Seleccionar zona</option>
-<option value="Norte">Norte</option>
-<option value="Centro-Norte">Centro-Norte</option>
-<option value="Sur">Sur</option>
-<option value="Oeste">Oeste</option>
+<option value="">Seleccionar zona</option>  
+<option value="Norte">Norte</option>  
+<option value="Centro-Norte">Centro-Norte</option>  
+<option value="Sur">Sur</option>  
+<option value="Oeste">Oeste</option>  
 <option value="Este">Este</option>
 
 </select>
@@ -238,17 +238,17 @@ className="border border-gray-300 p-3 rounded-lg text-gray-800"
 
 <div className="bg-white rounded-2xl shadow-lg p-6">
 
-<h2 className="text-xl font-bold text-gray-900 mb-4">
-🐾 Datos del Animal
+<h2 className="text-xl font-bold text-gray-900 mb-4">  
+🐾 Datos del Animal  
 </h2>
 
 <div className="grid md:grid-cols-2 gap-4">
 
-<input
-name="nombre_animal"
-placeholder="Nombre del animal"
-required
-className="border border-gray-300 p-3 rounded-lg text-gray-800"
+<input  
+name="nombre_animal"  
+placeholder="Nombre del animal"  
+required  
+className="border border-gray-300 p-3 rounded-lg text-gray-800"  
 />
 
 <select name="especie" required className="border border-gray-300 p-3 rounded-lg text-gray-800">
@@ -295,13 +295,13 @@ className="border border-gray-300 p-3 rounded-lg text-gray-800"
 
 <div className="bg-white rounded-2xl shadow-lg p-6">
 
-<h2 className="text-xl font-bold text-gray-900 mb-4">
-📸 Subir Fotos (Obligatorio)
+<h2 className="text-xl font-bold text-gray-900 mb-4">  
+📸 Subir Fotos (Obligatorio)  
 </h2>
 
 <div className="grid md:grid-cols-3 gap-4">
 
-<label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer">
+<label htmlFor="foto_frente" className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer">
 
 {previewFrente ?
 
@@ -309,13 +309,12 @@ className="border border-gray-300 p-3 rounded-lg text-gray-800"
 
 :
 
-<span className="text-sm text-gray-500">
-Frente del animal
-</span>
+<span className="text-sm text-gray-500">Frente del animal</span>
 
 }
 
 <input
+id="foto_frente"
 type="file"
 name="foto_frente"
 accept="image/jpeg,image/png,image/webp"
@@ -326,7 +325,7 @@ onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewFrente)}
 
 </label>
 
-<label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer">
+<label htmlFor="foto_lado" className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer">
 
 {previewLado ?
 
@@ -334,13 +333,12 @@ onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewFrente)}
 
 :
 
-<span className="text-sm text-gray-500">
-Lateral del animal
-</span>
+<span className="text-sm text-gray-500">Lateral del animal</span>
 
 }
 
 <input
+id="foto_lado"
 type="file"
 name="foto_lado"
 accept="image/jpeg,image/png,image/webp"
@@ -351,7 +349,7 @@ onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewLado)}
 
 </label>
 
-<label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer">
+<label htmlFor="foto_carnet" className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer">
 
 {previewCarnet ?
 
@@ -359,13 +357,12 @@ onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewLado)}
 
 :
 
-<span className="text-sm text-gray-500">
-Carnet del responsable
-</span>
+<span className="text-sm text-gray-500">Carnet del responsable</span>
 
 }
 
 <input
+id="foto_carnet"
 type="file"
 name="foto_carnet"
 accept="image/jpeg,image/png,image/webp"
@@ -378,8 +375,8 @@ onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewCarnet)}
 
 </div>
 
-<p className="text-sm text-gray-500 mt-2">
-Formatos permitidos: JPG, PNG, WEBP — Máximo 5MB cada imagen.
+<p className="text-sm text-gray-500 mt-2">  
+Formatos permitidos: JPG, PNG, WEBP — Máximo 5MB cada imagen.  
 </p>
 
 </div>
@@ -388,6 +385,7 @@ Formatos permitidos: JPG, PNG, WEBP — Máximo 5MB cada imagen.
 type="submit"
 disabled={loading}
 className="w-full bg-[#f47c3c] text-white py-4 rounded-2xl font-bold hover:opacity-90 transition"
+
 >
 
 {loading ? "Enviando..." : "Enviar Solicitud"}
