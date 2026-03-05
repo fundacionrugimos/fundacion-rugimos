@@ -164,10 +164,10 @@ Mascota:
 ${solicitud.nombre_animal} (${solicitud.especie})
 
 Clínica:
-${clinicaData.nombre}
+${clinicaData.nome}
 
 Dirección:
-${clinicaData.direccion}
+${clinicaData.endereco}
 
 Hora de llegada:
 ${horaAsignada}
