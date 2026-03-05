@@ -7,10 +7,23 @@ export default function Solicitud() {
 const [loading,setLoading] = useState(false)
 const [enviado,setEnviado] = useState(false)
 
+const [previewFrente,setPreviewFrente] = useState<string | null>(null)
+const [previewLado,setPreviewLado] = useState<string | null>(null)
+const [previewCarnet,setPreviewCarnet] = useState<string | null>(null)
+
 const MAX_SIZE = 5 * 1024 * 1024
 const ALLOWED_TYPES = ["image/jpeg","image/png","image/webp"]
 
-const handleSubmit = async (e:React.FormEvent<HTMLFormElement>) => {
+const handlePreview = (file:File,setPreview:any)=>{
+
+if(!file) return
+
+const url = URL.createObjectURL(file)
+setPreview(url)
+
+}
+
+const handleSubmit = async (e:React.FormEvent<HTMLFormElement>)=>{
 
 e.preventDefault()
 setLoading(true)
@@ -22,11 +35,12 @@ const fotoFrente = formData.get("foto_frente") as File
 const fotoLado = formData.get("foto_lado") as File
 const fotoCarnet = formData.get("foto_carnet") as File
 
-const validarImagen = (file:File) => {
+const validarImagen = (file:File)=>{
 
 if(!file) return false
 if(!ALLOWED_TYPES.includes(file.type)) return false
 if(file.size > MAX_SIZE) return false
+
 return true
 
 }
@@ -109,7 +123,7 @@ setEnviado(true)
 
 }catch(error){
 
-console.error("Error completo:",error)
+console.error(error)
 alert("Ocurrió un error al enviar la solicitud.")
 
 }
@@ -188,9 +202,24 @@ return(
 
 <div className="grid md:grid-cols-2 gap-4">
 
-<input name="ci" placeholder="CI" required className="border border-gray-300 p-3 rounded-lg text-gray-800"/>
+<input
+name="ci"
+placeholder="CI"
+required
+inputMode="numeric"
+onInput={(e:any)=>e.target.value=e.target.value.replace(/\D/g,'')}
+className="border border-gray-300 p-3 rounded-lg text-gray-800"
+/>
 
-<input name="celular" placeholder="Celular" required className="border border-gray-300 p-3 rounded-lg text-gray-800"/>
+<input
+name="celular"
+placeholder="Celular"
+required
+maxLength={8}
+inputMode="numeric"
+onInput={(e:any)=>e.target.value=e.target.value.replace(/\D/g,'')}
+className="border border-gray-300 p-3 rounded-lg text-gray-800"
+/>
 
 <select name="ubicacion" required className="border border-gray-300 p-3 rounded-lg text-gray-800 md:col-span-2">
 
@@ -215,7 +244,12 @@ return(
 
 <div className="grid md:grid-cols-2 gap-4">
 
-<input name="nombre_animal" placeholder="Nombre del animal" required className="border border-gray-300 p-3 rounded-lg text-gray-800"/>
+<input
+name="nombre_animal"
+placeholder="Nombre del animal"
+required
+className="border border-gray-300 p-3 rounded-lg text-gray-800"
+/>
 
 <select name="especie" required className="border border-gray-300 p-3 rounded-lg text-gray-800">
 <option value="">Especie</option>
@@ -237,7 +271,17 @@ return(
 <option value=">3 años">&gt; 3 años</option>
 </select>
 
-<input name="peso" placeholder="Peso" required className="border border-gray-300 p-3 rounded-lg text-gray-800"/>
+<input
+name="peso"
+placeholder="Peso"
+required
+inputMode="numeric"
+onInput={(e:any)=>{
+let v=e.target.value.replace(/\D/g,'')
+e.target.value=v? v+" kg":""
+}}
+className="border border-gray-300 p-3 rounded-lg text-gray-800"
+/>
 
 <select name="tipo_animal" required className="border border-gray-300 p-3 rounded-lg text-gray-800">
 <option value="">Animal</option>
@@ -257,45 +301,78 @@ return(
 
 <div className="grid md:grid-cols-3 gap-4">
 
-<label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-[#0f6a63] transition">
+<label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer">
 
-<span className="font-medium text-gray-700 mb-2">
+{previewFrente ?
+
+<img src={previewFrente} className="h-24 object-cover rounded-md"/>
+
+:
+
+<span className="text-sm text-gray-500">
 Frente del animal
 </span>
 
-<span className="text-sm text-gray-500">
-Tocar para subir foto
-</span>
+}
 
-<input type="file" name="foto_frente" accept="image/jpeg,image/png,image/webp" required className="hidden"/>
+<input
+type="file"
+name="foto_frente"
+accept="image/jpeg,image/png,image/webp"
+required
+className="hidden"
+onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewFrente)}
+/>
 
 </label>
 
-<label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-[#0f6a63] transition">
+<label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer">
 
-<span className="font-medium text-gray-700 mb-2">
+{previewLado ?
+
+<img src={previewLado} className="h-24 object-cover rounded-md"/>
+
+:
+
+<span className="text-sm text-gray-500">
 Lateral del animal
 </span>
 
-<span className="text-sm text-gray-500">
-Tocar para subir foto
-</span>
+}
 
-<input type="file" name="foto_lado" accept="image/jpeg,image/png,image/webp" required className="hidden"/>
+<input
+type="file"
+name="foto_lado"
+accept="image/jpeg,image/png,image/webp"
+required
+className="hidden"
+onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewLado)}
+/>
 
 </label>
 
-<label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-[#0f6a63] transition">
+<label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer">
 
-<span className="font-medium text-gray-700 mb-2">
+{previewCarnet ?
+
+<img src={previewCarnet} className="h-24 object-cover rounded-md"/>
+
+:
+
+<span className="text-sm text-gray-500">
 Carnet del responsable
 </span>
 
-<span className="text-sm text-gray-500">
-Tocar para subir foto
-</span>
+}
 
-<input type="file" name="foto_carnet" accept="image/jpeg,image/png,image/webp" required className="hidden"/>
+<input
+type="file"
+name="foto_carnet"
+accept="image/jpeg,image/png,image/webp"
+required
+className="hidden"
+onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewCarnet)}
+/>
 
 </label>
 
