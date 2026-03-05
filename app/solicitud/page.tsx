@@ -3,275 +3,324 @@ import { useState } from "react"
 import { supabase } from "@/lib/supabase"
 
 export default function Solicitud() {
-  const [loading, setLoading] = useState(false)
-  const [enviado, setEnviado] = useState(false)
 
-  const MAX_SIZE = 5 * 1024 * 1024
-  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"]
+const [loading,setLoading] = useState(false)
+const [enviado,setEnviado] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setLoading(true)
+const MAX_SIZE = 5 * 1024 * 1024
+const ALLOWED_TYPES = ["image/jpeg","image/png","image/webp"]
 
-    const form = e.currentTarget
-    const formData = new FormData(form)
+const handleSubmit = async (e:React.FormEvent<HTMLFormElement>) => {
 
-    const fotoFrente = formData.get("foto_frente") as File
-    const fotoLado = formData.get("foto_lado") as File
-    const fotoCarnet = formData.get("foto_carnet") as File
+e.preventDefault()
+setLoading(true)
 
-    const validarImagen = (file: File) => {
-      if (!file) return false
-      if (!ALLOWED_TYPES.includes(file.type)) return false
-      if (file.size > MAX_SIZE) return false
-      return true
-    }
+const form = e.currentTarget
+const formData = new FormData(form)
 
-    if (
-      !validarImagen(fotoFrente) ||
-      !validarImagen(fotoLado) ||
-      !validarImagen(fotoCarnet)
-    ) {
-      alert("Las imágenes deben ser JPG, PNG o WEBP y menores a 5MB.")
-      setLoading(false)
-      return
-    }
+const fotoFrente = formData.get("foto_frente") as File
+const fotoLado = formData.get("foto_lado") as File
+const fotoCarnet = formData.get("foto_carnet") as File
 
-    const ano = new Date().getFullYear()
-    const numero = Math.floor(100000 + Math.random() * 900000)
-    const codigoGenerado = `RUG-${ano}-${numero}`
+const validarImagen = (file:File) => {
 
-    const upload = async (file: File, name: string) => {
-      const fileExt = file.name.split(".").pop()
-      const filePath = `${codigoGenerado}_${name}.${fileExt}`
+if(!file) return false
+if(!ALLOWED_TYPES.includes(file.type)) return false
+if(file.size > MAX_SIZE) return false
+return true
 
-      const { error } = await supabase.storage
-        .from("solicitudes")
-        .upload(filePath, file)
+}
 
-      if (error) throw error
+if(
+!validarImagen(fotoFrente) ||
+!validarImagen(fotoLado) ||
+!validarImagen(fotoCarnet)
+){
 
-      const { data } = supabase.storage
-        .from("solicitudes")
-        .getPublicUrl(filePath)
+alert("Las imágenes deben ser JPG, PNG o WEBP y menores a 5MB.")
+setLoading(false)
+return
 
-      return data.publicUrl
-    }
+}
 
-    try {
+const ano = new Date().getFullYear()
+const numero = Math.floor(100000 + Math.random()*900000)
+const codigoGenerado = `RUG-${ano}-${numero}`
 
-      const nombre = formData.get("nombre")
-      const apellido1 = formData.get("apellido1")
-      const apellido2 = formData.get("apellido2")
+const upload = async(file:File,name:string)=>{
 
-      const nombreCompleto = `${nombre} ${apellido1} ${apellido2}`
+const fileExt = file.name.split(".").pop()
+const filePath = `${codigoGenerado}_${name}.${fileExt}`
 
-      const urlFrente = await upload(fotoFrente, "frente")
-      const urlLado = await upload(fotoLado, "lado")
-      const urlCarnet = await upload(fotoCarnet, "carnet")
+const { error } = await supabase.storage
+.from("solicitudes")
+.upload(filePath,file)
 
-      const { error } = await supabase.from("solicitudes").insert([
-        {
-          codigo: codigoGenerado,
-          nombre_completo: nombreCompleto,
-          ci: formData.get("ci"),
-          celular: formData.get("celular"),
-          ubicacion: formData.get("ubicacion"),
-          nombre_animal: formData.get("nombre_animal"),
-          especie: formData.get("especie"),
-          sexo: formData.get("sexo"),
-          edad: formData.get("edad"),
-          peso: formData.get("peso"),
-          tipo_animal: formData.get("tipo_animal"),
-          foto_frente: urlFrente,
-          foto_lado: urlLado,
-          foto_carnet: urlCarnet,
-          estado: "Pendiente"
-        }
-      ])
+if(error) throw error
 
-      if (error) throw error
+const { data } = supabase.storage
+.from("solicitudes")
+.getPublicUrl(filePath)
 
-      form.reset()
-      setEnviado(true)
+return data.publicUrl
 
-    } catch (error) {
-      console.error("Error completo:", error)
-      alert("Ocurrió un error al enviar la solicitud.")
-    }
+}
 
-    setLoading(false)
-  }
+try{
 
-  if (enviado) {
-    return (
-      <div className="min-h-screen bg-[#0f6a63] flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl shadow-xl p-10 max-w-xl text-center">
+const nombre = formData.get("nombre")
+const apellido1 = formData.get("apellido1")
+const apellido2 = formData.get("apellido2")
 
-          <h2 className="text-2xl font-bold text-green-600 mb-4">
-            ✅ Solicitud enviada correctamente
-          </h2>
+const nombreCompleto = `${nombre} ${apellido1} ${apellido2}`
 
-          <p className="text-gray-700 leading-relaxed">
-            Gracias por solicitar su cupo para la esterilización gratuita de la Fundación Rugimos.
-            <br /><br />
-            Nos comunicaremos con usted en un plazo máximo de 24 horas al número de WhatsApp proporcionado.
-          </p>
+const urlFrente = await upload(fotoFrente,"frente")
+const urlLado = await upload(fotoLado,"lado")
+const urlCarnet = await upload(fotoCarnet,"carnet")
 
-          <p className="text-gray-700 mt-6 font-medium">
-            Su ayuda es muy importante. El programa es gratuito, pero con cada aporte podremos esterilizar a más animales.
-          </p>
+const { error } = await supabase.from("solicitudes").insert([
 
-          <div className="flex justify-center mt-6">
-            <img
-              src="/qr.png"
-              alt="QR Donación Fundación Rugimos"
-              className="w-48 h-48"
-            />
-          </div>
+{
 
-        </div>
-      </div>
-    )
-  }
+codigo:codigoGenerado,
+nombre_completo:nombreCompleto,
+ci:formData.get("ci"),
+celular:formData.get("celular"),
+ubicacion:formData.get("ubicacion"),
+nombre_animal:formData.get("nombre_animal"),
+especie:formData.get("especie"),
+sexo:formData.get("sexo"),
+edad:formData.get("edad"),
+peso:formData.get("peso"),
+tipo_animal:formData.get("tipo_animal"),
+foto_frente:urlFrente,
+foto_lado:urlLado,
+foto_carnet:urlCarnet,
+estado:"Pendiente"
 
-  return (
-    <div className="min-h-screen bg-[#0f6a63] flex justify-center p-6">
-      <form onSubmit={handleSubmit} className="w-full max-w-4xl space-y-6 mx-auto">
+}
 
-        {/* RESPONSABLE */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h2 className="text-xl font-bold mb-4">👤 Datos del Responsable</h2>
+])
 
-          <div className="grid md:grid-cols-3 gap-4 mb-4">
-            <input name="nombre" placeholder="Nombre" required pattern="[A-Za-zÁÉÍÓÚáéíóúñÑ ]+" className="border border-gray-300 p-3 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#0f6a63]" />
-            <input name="apellido1" placeholder="Primer apellido" required pattern="[A-Za-zÁÉÍÓÚáéíóúñÑ ]+" className="border border-gray-300 p-3 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#0f6a63]" />
-            <input name="apellido2" placeholder="Segundo apellido" required pattern="[A-Za-zÁÉÍÓÚáéíóúñÑ ]+" className="border border-gray-300 p-3 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#0f6a63]" />
-          </div>
+if(error) throw error
 
-          <div className="grid md:grid-cols-2 gap-4">
-            <input
-              name="ci"
-              placeholder="CI"
-              required
-              inputMode="numeric"
-              onInput={(e: any) => e.target.value = e.target.value.replace(/\D/g,'')}
-              className="border border-gray-300 p-3 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#0f6a63]"
-            />
+form.reset()
+setEnviado(true)
 
-            <input
-              name="celular"
-              placeholder="Celular"
-              required
-              maxLength={8}
-              inputMode="numeric"
-              onInput={(e: any) => e.target.value = e.target.value.replace(/\D/g,'')}
-              className="border border-gray-300 p-3 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#0f6a63]"
-            />
+}catch(error){
 
-            <select name="ubicacion" required className="border border-gray-300 p-3 rounded-lg text-gray-800 md:col-span-2 focus:ring-2 focus:ring-[#0f6a63]">
-              <option value="">Seleccionar zona</option>
-              <option value="Norte">Norte</option>
-              <option value="Centro-Norte">Centro-Norte</option>
-              <option value="Sur">Sur</option>
-              <option value="Oeste">Oeste</option>
-              <option value="Este">Este</option>
-            </select>
-          </div>
-        </div>
+console.error("Error completo:",error)
+alert("Ocurrió un error al enviar la solicitud.")
 
-        {/* ANIMAL */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h2 className="text-xl font-bold mb-4">🐾 Datos del Animal</h2>
+}
 
-          <div className="grid md:grid-cols-2 gap-4">
+setLoading(false)
 
-            <input
-              name="nombre_animal"
-              placeholder="Nombre del animal"
-              required
-              pattern="[A-Za-zÁÉÍÓÚáéíóúñÑ ]+"
-              className="border border-gray-300 p-3 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#0f6a63]"
-            />
+}
 
-            <select name="especie" required className="border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-[#0f6a63]">
-              <option value="">Especie</option>
-              <option value="Perro">Perro</option>
-              <option value="Gato">Gato</option>
-            </select>
+if(enviado){
 
-            <select name="sexo" required className="border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-[#0f6a63]">
-              <option value="">Sexo</option>
-              <option value="Macho">Macho</option>
-              <option value="Hembra">Hembra</option>
-            </select>
+return(
 
-            <select name="edad" required className="border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-[#0f6a63]">
-              <option value="">Edad</option>
-              <option value="<6 meses">&lt; 6 meses</option>
-              <option value="6 meses a 1 año">6 meses a 1 año</option>
-              <option value="1 a 3 años">1 a 3 años</option>
-              <option value=">3 años">&gt; 3 años</option>
-            </select>
+<div className="min-h-screen bg-[#0f6a63] flex items-center justify-center p-6">
 
-            <input
-              name="peso"
-              placeholder="Peso"
-              required
-              inputMode="numeric"
-              onInput={(e: any)=>{
-                let v = e.target.value.replace(/\D/g,'')
-                e.target.value = v ? v + " kg" : ""
-              }}
-              className="border border-gray-300 p-3 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#0f6a63]"
-            />
+<div className="bg-white rounded-2xl shadow-xl p-10 max-w-xl text-center">
 
-            <select name="tipo_animal" required className="border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-[#0f6a63]">
-              <option value="">Animal</option>
-              <option value="Propio">Propio</option>
-              <option value="Calle">De la calle</option>
-            </select>
+<h2 className="text-2xl font-bold text-green-600 mb-4">
+✅ Solicitud enviada correctamente
+</h2>
 
-          </div>
-        </div>
+<p className="text-gray-700 leading-relaxed">
 
-        {/* FOTOS */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h2 className="text-xl font-bold mb-4">📸 Subir Fotos (Obligatorio)</h2>
+Gracias por solicitar su cupo para la esterilización gratuita de la Fundación Rugimos.
 
-          <div className="grid md:grid-cols-3 gap-4">
+<br/><br/>
 
-            <div className="flex flex-col">
-              <label className="text-sm text-gray-700 mb-1">Frente del animal</label>
-              <input type="file" name="foto_frente" accept="image/jpeg,image/png,image/webp" required className="border border-gray-300 p-3 rounded-lg bg-white" />
-            </div>
+Nos comunicaremos con usted en un plazo máximo de 24 horas al número de WhatsApp proporcionado.
 
-            <div className="flex flex-col">
-              <label className="text-sm text-gray-700 mb-1">Lateral del animal</label>
-              <input type="file" name="foto_lado" accept="image/jpeg,image/png,image/webp" required className="border border-gray-300 p-3 rounded-lg bg-white" />
-            </div>
+</p>
 
-            <div className="flex flex-col">
-              <label className="text-sm text-gray-700 mb-1">Carnet del responsable</label>
-              <input type="file" name="foto_carnet" accept="image/jpeg,image/png,image/webp" required className="border border-gray-300 p-3 rounded-lg bg-white" />
-            </div>
+<p className="text-gray-700 mt-6 font-medium">
 
-          </div>
+Su ayuda es muy importante. El programa es gratuito, pero con cada aporte podremos esterilizar a más animales.
 
-          <p className="text-sm text-gray-500 mt-2">
-            Formatos permitidos: JPG, PNG, WEBP — Máximo 5MB cada imagen.
-          </p>
-        </div>
+</p>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-[#f47c3c] text-white py-4 rounded-2xl font-bold hover:opacity-90 transition"
-        >
-          {loading ? "Enviando..." : "Enviar Solicitud"}
-        </button>
+<div className="flex justify-center mt-6">
 
-      </form>
-    </div>
-  )
+<img
+src="/qr.png"
+alt="QR Donación Fundación Rugimos"
+className="w-48 h-48"
+/>
+
+</div>
+
+</div>
+
+</div>
+
+)
+
+}
+
+return(
+
+<div className="min-h-screen bg-[#0f6a63] flex justify-center p-6">
+
+<form onSubmit={handleSubmit} className="w-full max-w-4xl space-y-6 mx-auto">
+
+<div className="bg-white rounded-2xl shadow-lg p-6">
+
+<h2 className="text-xl font-bold text-gray-900 mb-4">
+👤 Datos del Responsable
+</h2>
+
+<div className="grid md:grid-cols-3 gap-4 mb-4">
+
+<input name="nombre" placeholder="Nombre" required className="border border-gray-300 p-3 rounded-lg text-gray-800"/>
+
+<input name="apellido1" placeholder="Primer apellido" required className="border border-gray-300 p-3 rounded-lg text-gray-800"/>
+
+<input name="apellido2" placeholder="Segundo apellido" required className="border border-gray-300 p-3 rounded-lg text-gray-800"/>
+
+</div>
+
+<div className="grid md:grid-cols-2 gap-4">
+
+<input name="ci" placeholder="CI" required className="border border-gray-300 p-3 rounded-lg text-gray-800"/>
+
+<input name="celular" placeholder="Celular" required className="border border-gray-300 p-3 rounded-lg text-gray-800"/>
+
+<select name="ubicacion" required className="border border-gray-300 p-3 rounded-lg text-gray-800 md:col-span-2">
+
+<option value="">Seleccionar zona</option>
+<option value="Norte">Norte</option>
+<option value="Centro-Norte">Centro-Norte</option>
+<option value="Sur">Sur</option>
+<option value="Oeste">Oeste</option>
+<option value="Este">Este</option>
+
+</select>
+
+</div>
+
+</div>
+
+<div className="bg-white rounded-2xl shadow-lg p-6">
+
+<h2 className="text-xl font-bold text-gray-900 mb-4">
+🐾 Datos del Animal
+</h2>
+
+<div className="grid md:grid-cols-2 gap-4">
+
+<input name="nombre_animal" placeholder="Nombre del animal" required className="border border-gray-300 p-3 rounded-lg text-gray-800"/>
+
+<select name="especie" required className="border border-gray-300 p-3 rounded-lg text-gray-800">
+<option value="">Especie</option>
+<option value="Perro">Perro</option>
+<option value="Gato">Gato</option>
+</select>
+
+<select name="sexo" required className="border border-gray-300 p-3 rounded-lg text-gray-800">
+<option value="">Sexo</option>
+<option value="Macho">Macho</option>
+<option value="Hembra">Hembra</option>
+</select>
+
+<select name="edad" required className="border border-gray-300 p-3 rounded-lg text-gray-800">
+<option value="">Edad</option>
+<option value="<6 meses">&lt; 6 meses</option>
+<option value="6 meses a 1 año">6 meses a 1 año</option>
+<option value="1 a 3 años">1 a 3 años</option>
+<option value=">3 años">&gt; 3 años</option>
+</select>
+
+<input name="peso" placeholder="Peso" required className="border border-gray-300 p-3 rounded-lg text-gray-800"/>
+
+<select name="tipo_animal" required className="border border-gray-300 p-3 rounded-lg text-gray-800">
+<option value="">Animal</option>
+<option value="Propio">Propio</option>
+<option value="Calle">De la calle</option>
+</select>
+
+</div>
+
+</div>
+
+<div className="bg-white rounded-2xl shadow-lg p-6">
+
+<h2 className="text-xl font-bold text-gray-900 mb-4">
+📸 Subir Fotos (Obligatorio)
+</h2>
+
+<div className="grid md:grid-cols-3 gap-4">
+
+<label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-[#0f6a63] transition">
+
+<span className="font-medium text-gray-700 mb-2">
+Frente del animal
+</span>
+
+<span className="text-sm text-gray-500">
+Tocar para subir foto
+</span>
+
+<input type="file" name="foto_frente" accept="image/jpeg,image/png,image/webp" required className="hidden"/>
+
+</label>
+
+<label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-[#0f6a63] transition">
+
+<span className="font-medium text-gray-700 mb-2">
+Lateral del animal
+</span>
+
+<span className="text-sm text-gray-500">
+Tocar para subir foto
+</span>
+
+<input type="file" name="foto_lado" accept="image/jpeg,image/png,image/webp" required className="hidden"/>
+
+</label>
+
+<label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-[#0f6a63] transition">
+
+<span className="font-medium text-gray-700 mb-2">
+Carnet del responsable
+</span>
+
+<span className="text-sm text-gray-500">
+Tocar para subir foto
+</span>
+
+<input type="file" name="foto_carnet" accept="image/jpeg,image/png,image/webp" required className="hidden"/>
+
+</label>
+
+</div>
+
+<p className="text-sm text-gray-500 mt-2">
+Formatos permitidos: JPG, PNG, WEBP — Máximo 5MB cada imagen.
+</p>
+
+</div>
+
+<button
+type="submit"
+disabled={loading}
+className="w-full bg-[#f47c3c] text-white py-4 rounded-2xl font-bold hover:opacity-90 transition"
+>
+
+{loading ? "Enviando..." : "Enviar Solicitud"}
+
+</button>
+
+</form>
+
+</div>
+
+)
+
 }
