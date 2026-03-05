@@ -105,6 +105,18 @@ setLoadingId(null)
 return
 }
 
+const {data:horarioData,error:horarioError} = await supabase
+.from("horarios")
+.select("hora")
+.eq("id",horarioId)
+.single()
+
+if(horarioError || !horarioData){
+alert("Error obteniendo horario")
+setLoadingId(null)
+return
+}
+
 const codigoGenerado =
 `RUG-${new Date().getFullYear()}-${Math.floor(100000 + Math.random()*900000)}`
 
@@ -131,6 +143,7 @@ zona:solicitud.ubicacion,
 estado:"Pendiente",
 clinica_id:clinicaId,
 horario_id:horarioId,
+hora:horarioData.hora,
 foto_frente:solicitud.foto_frente,
 foto_lado:solicitud.foto_lado,
 foto_carnet:solicitud.foto_carnet
@@ -153,6 +166,9 @@ ${clinicaData.nombre}
 
 Dirección:
 ${clinicaData.direccion}
+
+Hora de llegada:
+${horarioData.hora}
 
 INSTRUCCIONES
 
@@ -203,20 +219,20 @@ Enviar WhatsApp
 
 )}
 
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<div className="flex flex-col items-center gap-8">
 
 {solicitudes.map((s)=>(
 
 <div
 key={s.id}
-className="bg-white rounded-xl shadow-lg p-6 border border-gray-200"
+className="bg-white rounded-2xl shadow-md p-6 border border-gray-200 max-w-xl w-full"
 >
 
-<p className="text-xs text-gray-600 mb-2 font-mono">
+<p className="text-xs text-gray-500 mb-2 font-mono">
 {s.codigo}
 </p>
 
-<h2 className="text-lg font-semibold mb-3 text-gray-900">
+<h2 className="text-xl font-semibold text-gray-900 mb-3">
 {s.nombre_completo}
 </h2>
 
@@ -225,20 +241,19 @@ className="bg-white rounded-xl shadow-lg p-6 border border-gray-200"
 <p><strong>CI:</strong> {s.ci || "No especificado"}</p>
 <p><strong>Celular:</strong> {s.celular}</p>
 <p><strong>Zona:</strong> {s.ubicacion}</p>
-<p><strong>Animal:</strong> {s.nombre_animal}</p>
-<p><strong>Especie:</strong> {s.especie}</p>
+<p><strong>Animal:</strong> {s.nombre_animal} ({s.especie})</p>
 <p><strong>Sexo:</strong> {s.sexo}</p>
 <p><strong>Edad:</strong> {s.edad}</p>
-<p><strong>Peso:</strong> {s.peso} kg</p>
+<p><strong>Peso:</strong> {s.peso}</p>
 
 </div>
 
-<div className="flex gap-2 mt-4">
+<div className="flex gap-3 mt-4">
 
 {s.foto_frente &&(
 <img
 src={s.foto_frente}
-className="w-20 h-20 object-cover rounded-md border cursor-pointer hover:scale-105 transition"
+className="w-24 h-24 object-cover rounded-lg border cursor-pointer"
 onClick={()=>setFotoSeleccionada(s.foto_frente)}
 />
 )}
@@ -246,7 +261,7 @@ onClick={()=>setFotoSeleccionada(s.foto_frente)}
 {s.foto_lado &&(
 <img
 src={s.foto_lado}
-className="w-20 h-20 object-cover rounded-md border cursor-pointer hover:scale-105 transition"
+className="w-24 h-24 object-cover rounded-lg border cursor-pointer"
 onClick={()=>setFotoSeleccionada(s.foto_lado)}
 />
 )}
@@ -254,7 +269,7 @@ onClick={()=>setFotoSeleccionada(s.foto_lado)}
 {s.foto_carnet &&(
 <img
 src={s.foto_carnet}
-className="w-20 h-20 object-cover rounded-md border cursor-pointer hover:scale-105 transition"
+className="w-24 h-24 object-cover rounded-lg border cursor-pointer"
 onClick={()=>setFotoSeleccionada(s.foto_carnet)}
 />
 )}
@@ -266,7 +281,7 @@ onClick={()=>setFotoSeleccionada(s.foto_carnet)}
 <button
 disabled={loadingId===s.id}
 onClick={()=>cambiarEstado(s,"Aprobado")}
-className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
+className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
 >
 {loadingId===s.id?"Procesando":"Aprobar"}
 </button>
@@ -274,7 +289,7 @@ className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm hover:bg-green
 <button
 disabled={loadingId===s.id}
 onClick={()=>cambiarEstado(s,"Rechazado")}
-className="flex-1 bg-red-600 text-white py-2 rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
+className="flex-1 bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50"
 >
 Rechazar
 </button>
