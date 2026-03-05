@@ -137,16 +137,16 @@ export default function Solicitud() {
 
   return (
     <div className="min-h-screen bg-[#0f6a63] flex justify-center p-6">
-      <form onSubmit={handleSubmit} className="w-full max-w-4xl space-y-6">
+      <form onSubmit={handleSubmit} className="w-full max-w-4xl space-y-6 mx-auto">
 
         {/* RESPONSABLE */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h2 className="text-xl font-bold mb-4">👤 Datos del Responsable</h2>
 
           <div className="grid md:grid-cols-3 gap-4 mb-4">
-            <input name="nombre" placeholder="Nombre" required pattern="[A-Za-zÁÉÍÓÚáéíóúñÑ ]+" className="border p-3 rounded-lg" />
-            <input name="apellido1" placeholder="Primer apellido" required pattern="[A-Za-zÁÉÍÓÚáéíóúñÑ ]+" className="border p-3 rounded-lg" />
-            <input name="apellido2" placeholder="Segundo apellido" required pattern="[A-Za-zÁÉÍÓÚáéíóúñÑ ]+" className="border p-3 rounded-lg" />
+            <input name="nombre" placeholder="Nombre" required pattern="[A-Za-zÁÉÍÓÚáéíóúñÑ ]+" className="border border-gray-300 p-3 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#0f6a63]" />
+            <input name="apellido1" placeholder="Primer apellido" required pattern="[A-Za-zÁÉÍÓÚáéíóúñÑ ]+" className="border border-gray-300 p-3 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#0f6a63]" />
+            <input name="apellido2" placeholder="Segundo apellido" required pattern="[A-Za-zÁÉÍÓÚáéíóúñÑ ]+" className="border border-gray-300 p-3 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#0f6a63]" />
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">
@@ -156,7 +156,7 @@ export default function Solicitud() {
               required
               inputMode="numeric"
               onInput={(e: any) => e.target.value = e.target.value.replace(/\D/g,'')}
-              className="border p-3 rounded-lg"
+              className="border border-gray-300 p-3 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#0f6a63]"
             />
 
             <input
@@ -166,10 +166,10 @@ export default function Solicitud() {
               maxLength={8}
               inputMode="numeric"
               onInput={(e: any) => e.target.value = e.target.value.replace(/\D/g,'')}
-              className="border p-3 rounded-lg"
+              className="border border-gray-300 p-3 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#0f6a63]"
             />
 
-            <select name="ubicacion" required className="border p-3 rounded-lg md:col-span-2">
+            <select name="ubicacion" required className="border border-gray-300 p-3 rounded-lg text-gray-800 md:col-span-2 focus:ring-2 focus:ring-[#0f6a63]">
               <option value="">Seleccionar zona</option>
               <option value="Norte">Norte</option>
               <option value="Centro-Norte">Centro-Norte</option>
@@ -191,22 +191,22 @@ export default function Solicitud() {
               placeholder="Nombre del animal"
               required
               pattern="[A-Za-zÁÉÍÓÚáéíóúñÑ ]+"
-              className="border p-3 rounded-lg"
+              className="border border-gray-300 p-3 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#0f6a63]"
             />
 
-            <select name="especie" required className="border p-3 rounded-lg">
+            <select name="especie" required className="border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-[#0f6a63]">
               <option value="">Especie</option>
               <option value="Perro">Perro</option>
               <option value="Gato">Gato</option>
             </select>
 
-            <select name="sexo" required className="border p-3 rounded-lg">
+            <select name="sexo" required className="border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-[#0f6a63]">
               <option value="">Sexo</option>
               <option value="Macho">Macho</option>
               <option value="Hembra">Hembra</option>
             </select>
 
-            <select name="edad" required className="border p-3 rounded-lg">
+            <select name="edad" required className="border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-[#0f6a63]">
               <option value="">Edad</option>
               <option value="<6 meses">&lt; 6 meses</option>
               <option value="6 meses a 1 año">6 meses a 1 año</option>
@@ -223,10 +223,10 @@ export default function Solicitud() {
                 let v = e.target.value.replace(/\D/g,'')
                 e.target.value = v ? v + " kg" : ""
               }}
-              className="border p-3 rounded-lg"
+              className="border border-gray-300 p-3 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#0f6a63]"
             />
 
-            <select name="tipo_animal" required className="border p-3 rounded-lg">
+            <select name="tipo_animal" required className="border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-[#0f6a63]">
               <option value="">Animal</option>
               <option value="Propio">Propio</option>
               <option value="Calle">De la calle</option>
@@ -240,9 +240,22 @@ export default function Solicitud() {
           <h2 className="text-xl font-bold mb-4">📸 Subir Fotos (Obligatorio)</h2>
 
           <div className="grid md:grid-cols-3 gap-4">
-            <input type="file" name="foto_frente" accept="image/jpeg,image/png,image/webp" required className="border p-3 rounded-lg" />
-            <input type="file" name="foto_lado" accept="image/jpeg,image/png,image/webp" required className="border p-3 rounded-lg" />
-            <input type="file" name="foto_carnet" accept="image/jpeg,image/png,image/webp" required className="border p-3 rounded-lg" />
+
+            <div className="flex flex-col">
+              <label className="text-sm text-gray-700 mb-1">Frente del animal</label>
+              <input type="file" name="foto_frente" accept="image/jpeg,image/png,image/webp" required className="border border-gray-300 p-3 rounded-lg bg-white" />
+            </div>
+
+            <div className="flex flex-col">
+              <label className="text-sm text-gray-700 mb-1">Lateral del animal</label>
+              <input type="file" name="foto_lado" accept="image/jpeg,image/png,image/webp" required className="border border-gray-300 p-3 rounded-lg bg-white" />
+            </div>
+
+            <div className="flex flex-col">
+              <label className="text-sm text-gray-700 mb-1">Carnet del responsable</label>
+              <input type="file" name="foto_carnet" accept="image/jpeg,image/png,image/webp" required className="border border-gray-300 p-3 rounded-lg bg-white" />
+            </div>
+
           </div>
 
           <p className="text-sm text-gray-500 mt-2">
