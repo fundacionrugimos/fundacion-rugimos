@@ -112,14 +112,27 @@ return
 }
 
 const zonas:any = {
+
 "Norte": {lat:-17.73,lng:-63.18},
 "Sur": {lat:-17.85,lng:-63.18},
 "Este": {lat:-17.78,lng:-63.15},
 "Oeste": {lat:-17.78,lng:-63.21},
-"Centro": {lat:-17.78,lng:-63.18}
+"Centro": {lat:-17.78,lng:-63.18},
+
+"Centro-Norte": {lat:-17.74,lng:-63.18},
+"Centro-Sur": {lat:-17.82,lng:-63.18},
+"Plan 3000": {lat:-17.85,lng:-63.15},
+"Pampa de la Isla": {lat:-17.77,lng:-63.13}
+
 }
 
 const zonaCoords = zonas[solicitud.ubicacion]
+
+if(!zonaCoords){
+alert("Zona no reconocida en el sistema")
+setLoadingId(null)
+return
+}
 
 clinicas.sort((a:any,b:any)=>{
 
