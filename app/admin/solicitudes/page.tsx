@@ -173,8 +173,12 @@ const telefono = solicitud.celular.replace(/\D/g,"")
 
 const url = `https://wa.me/591${telefono}?text=${encodeURIComponent(mensaje)}`
 
-window.open(url,"_blank")
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 
+if(isMobile){
+window.location.href = url
+}else{
+window.open(url,"_blank")
 }
 
 await fetchSolicitudes()
