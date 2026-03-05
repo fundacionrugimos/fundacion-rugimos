@@ -63,6 +63,26 @@ window.open(url,"_blank")
 
 }
 
+function calcularDistancia(lat1:number,lon1:number,lat2:number,lon2:number){
+
+const R = 6371
+
+const dLat = (lat2-lat1) * Math.PI/180
+const dLon = (lon2-lon1) * Math.PI/180
+
+const a =
+Math.sin(dLat/2)*Math.sin(dLat/2)+
+Math.cos(lat1*Math.PI/180)*
+Math.cos(lat2*Math.PI/180)*
+Math.sin(dLon/2)*
+Math.sin(dLon/2)
+
+const c = 2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))
+
+return R*c
+
+}
+
 const cambiarEstado = async(solicitud:Solicitud,nuevoEstado:string)=>{
 
 setLoadingId(solicitud.id)
@@ -80,30 +100,59 @@ return
 
 if(nuevoEstado === "Aprobado"){
 
-const {data:clinicaData,error:clinicaError} = await supabase
+const {data:clinicas,error:clinicaError} = await supabase
 .from("clinicas")
 .select("*")
-.eq("zona",solicitud.ubicacion)
 .eq("ativa",true)
-.limit(1)
-.single()
 
-if(clinicaError || !clinicaData){
-alert("No se encontró clínica activa")
+if(clinicaError || !clinicas){
+alert("No se encontraron clínicas activas")
+setLoadingId(null)
+return
+}
+
+const zonas:any = {
+"Norte": {lat:-17.73,lng:-63.18},
+"Sur": {lat:-17.85,lng:-63.18},
+"Este": {lat:-17.78,lng:-63.15},
+"Oeste": {lat:-17.78,lng:-63.21},
+"Centro": {lat:-17.78,lng:-63.18}
+}
+
+const zonaCoords = zonas[solicitud.ubicacion]
+
+clinicas.sort((a:any,b:any)=>{
+
+const distA = calcularDistancia(zonaCoords.lat,zonaCoords.lng,a.lat,a.lng)
+const distB = calcularDistancia(zonaCoords.lat,zonaCoords.lng,b.lat,b.lng)
+
+return distA - distB
+
+})
+
+let clinicaData:any = null
+let horarioId:any = null
+
+for(const clinica of clinicas){
+
+const {data:horarioDisponible,error:reservaError} =
+await supabase.rpc("reservar_vaga",{p_clinica_id:clinica.id})
+
+if(!reservaError && horarioDisponible){
+clinicaData = clinica
+horarioId = horarioDisponible
+break
+}
+
+}
+
+if(!clinicaData){
+alert("Todas las clínicas están llenas")
 setLoadingId(null)
 return
 }
 
 const clinicaId = clinicaData.id
-
-const {data:horarioId,error:reservaError} =
-await supabase.rpc("reservar_vaga",{p_clinica_id:clinicaId})
-
-if(reservaError || !horarioId){
-alert("No hay cupos disponibles")
-setLoadingId(null)
-return
-}
 
 const {data:horario,error:horarioError} = await supabase
 .from("horarios_clinica")
@@ -213,10 +262,9 @@ Registro aprobado. Enviar confirmación por WhatsApp.
 <button
 onClick={enviarWhatsapp}
 className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-
 >
-
-Enviar WhatsApp </button>
+Enviar WhatsApp
+</button>
 
 </div>
 
@@ -285,19 +333,17 @@ onClick={()=>setFotoSeleccionada(s.foto_carnet)}
 disabled={loadingId===s.id}
 onClick={()=>cambiarEstado(s,"Aprobado")}
 className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
-
 >
-
-{loadingId===s.id?"Procesando":"Aprobar"} </button>
+{loadingId===s.id?"Procesando":"Aprobar"}
+</button>
 
 <button
 disabled={loadingId===s.id}
 onClick={()=>cambiarEstado(s,"Rechazado")}
 className="flex-1 bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50"
-
 >
-
-Rechazar </button>
+Rechazar
+</button>
 
 </div>
 
