@@ -148,6 +148,31 @@ let horarioId:any = null
 
 for(const clinica of clinicas){
 
+// FILTROS DE ANIMAL
+
+if(solicitud.especie === "Perro" && !clinica.acepta_perros) continue
+if(solicitud.especie === "Gato" && !clinica.acepta_gatos) continue
+
+if(solicitud.sexo === "Macho" && !clinica.acepta_machos) continue
+if(solicitud.sexo === "Hembra" && !clinica.acepta_hembras) continue
+
+if(solicitud.tipo_animal === "De la calle" && !clinica.acepta_calle) continue
+if(solicitud.tipo_animal === "Propio" && !clinica.acepta_propio) continue
+
+// CASO ESPECIAL
+// PERRO HEMBRA DE LA CALLE
+
+if(
+solicitud.especie === "Perro" &&
+solicitud.sexo === "Hembra" &&
+solicitud.tipo_animal === "De la calle" &&
+!clinica.acepta_perras_calle
+){
+continue
+}
+
+// INTENTAR RESERVAR CUPO
+
 const {data:horarioDisponible,error:reservaError} =
 await supabase.rpc("reservar_vaga",{p_clinica_id:clinica.id})
 
@@ -160,7 +185,7 @@ break
 }
 
 if(!clinicaData){
-alert("Todas las clínicas están llenas")
+alert("No hay clínicas disponibles para este tipo de animal")
 setLoadingId(null)
 return
 }
@@ -214,8 +239,7 @@ foto_carnet:solicitud.foto_carnet
 }
 ])
 
-const mensaje = `
-🐾 FUNDACIÓN RUGIMOS 🐾
+const mensaje = `🐾 FUNDACIÓN RUGIMOS 🐾
 
 Tu solicitud fue APROBADA ✅
 
@@ -241,8 +265,7 @@ INSTRUCCIONES
 • Llevar manta
 • Llegar 15 min antes
 
-Gracias por apoyar la esterilización responsable 💚
-`
+Gracias por apoyar la esterilización responsable 💚`
 
 setWhatsappData({
 telefono:solicitud.celular,
@@ -312,34 +335,6 @@ className="bg-white rounded-2xl shadow-md p-6 border border-gray-200 max-w-xl w-
 
 </div>
 
-<div className="flex gap-3 mt-4">
-
-{s.foto_frente &&(
-<img
-src={s.foto_frente}
-className="w-24 h-24 object-cover rounded-lg border cursor-pointer"
-onClick={()=>setFotoSeleccionada(s.foto_frente)}
-/>
-)}
-
-{s.foto_lado &&(
-<img
-src={s.foto_lado}
-className="w-24 h-24 object-cover rounded-lg border cursor-pointer"
-onClick={()=>setFotoSeleccionada(s.foto_lado)}
-/>
-)}
-
-{s.foto_carnet &&(
-<img
-src={s.foto_carnet}
-className="w-24 h-24 object-cover rounded-lg border cursor-pointer"
-onClick={()=>setFotoSeleccionada(s.foto_carnet)}
-/>
-)}
-
-</div>
-
 <div className="flex gap-3 mt-6">
 
 <button
@@ -365,22 +360,6 @@ Rechazar
 ))}
 
 </div>
-
-{fotoSeleccionada &&(
-
-<div
-className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
-onClick={()=>setFotoSeleccionada(null)}
->
-
-<img
-src={fotoSeleccionada}
-className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-xl"
-/>
-
-</div>
-
-)}
 
 </div>
 
