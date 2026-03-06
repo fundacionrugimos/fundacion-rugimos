@@ -148,14 +148,10 @@ let horarioId:any=null
 
 for(const clinica of clinicas){
 
-/* REGLA ESPECIAL
-PERRO + HEMBRA + DE LA CALLE
-*/
-
 if(
-solicitud.especie === "Perro" &&
-solicitud.sexo === "Hembra" &&
-solicitud.tipo_animal === "De la calle"
+solicitud.especie==="Perro" &&
+solicitud.sexo==="Hembra" &&
+solicitud.tipo_animal==="De la calle"
 ){
 if(!clinica.acepta_perras_calle) continue
 }
@@ -188,20 +184,28 @@ setLoadingId(null)
 return
 }
 
-const clinicaId=clinicaData.id
+const clinicaId = clinicaData.id
 
-const {data:horario}=await supabase
+const { data: horario, error: horarioError } = await supabase
 .from("horarios_clinica")
 .select("hora")
-.eq("id",horarioId)
+.eq("id", horarioId)
 .single()
 
-const horaAsignada=horario.hora
+if(horarioError || !horario){
+alert("Error obteniendo horario")
+setLoadingId(null)
+return
+}
 
-const codigoGenerado=
+const horaAsignada = horario.hora
+
+const codigoGenerado =
 `RUG-${new Date().getFullYear()}-${Math.floor(100000+Math.random()*900000)}`
 
-await supabase.from("solicitudes").update({codigo:codigoGenerado}).eq("id",solicitud.id)
+await supabase.from("solicitudes")
+.update({codigo:codigoGenerado})
+.eq("id",solicitud.id)
 
 await supabase.from("registros").insert([{
 
@@ -274,7 +278,7 @@ return(
 Solicitudes Recibidas
 </h1>
 
-{whatsappData&&(
+{whatsappData && (
 
 <div className="bg-green-100 border border-green-300 p-4 rounded-lg mb-6 flex justify-between items-center">
 
@@ -320,22 +324,22 @@ className="bg-white rounded-2xl shadow-md p-6 border border-gray-200 max-w-xl w-
 
 <div className="flex gap-3 mt-4">
 
-{s.foto_frente?.trim()!==""&&(
-<img src={s.foto_frente!}
+{s.foto_frente &&(
+<img src={s.foto_frente}
 className="w-24 h-24 object-cover rounded-lg border cursor-pointer"
 onClick={()=>setFotoSeleccionada(s.foto_frente)}
 />
 )}
 
-{s.foto_lado?.trim()!==""&&(
-<img src={s.foto_lado!}
+{s.foto_lado &&(
+<img src={s.foto_lado}
 className="w-24 h-24 object-cover rounded-lg border cursor-pointer"
 onClick={()=>setFotoSeleccionada(s.foto_lado)}
 />
 )}
 
-{s.foto_carnet?.trim()!==""&&(
-<img src={s.foto_carnet!}
+{s.foto_carnet &&(
+<img src={s.foto_carnet}
 className="w-24 h-24 object-cover rounded-lg border cursor-pointer"
 onClick={()=>setFotoSeleccionada(s.foto_carnet)}
 />
@@ -371,13 +375,17 @@ Rechazar
 
 </div>
 
-{fotoSeleccionada&&(
+{fotoSeleccionada && (
 
-<div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
-onClick={()=>setFotoSeleccionada(null)}>
+<div
+className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+onClick={()=>setFotoSeleccionada(null)}
+>
 
-<img src={fotoSeleccionada}
-className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-xl"/>
+<img
+src={fotoSeleccionada}
+className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-xl"
+/>
 
 </div>
 
