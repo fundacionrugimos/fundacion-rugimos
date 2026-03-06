@@ -19,6 +19,7 @@ interface Clinica {
   acepta_hembras: boolean
   acepta_calle: boolean
   acepta_propio: boolean
+  acepta_perras_calle: boolean
 }
 
 export default function ClinicasPage(){
@@ -92,12 +93,13 @@ const se_por_dia = Number(form.se_por_dia.value)
 const usuario = form.usuario.value
 const senha = form.senha.value
 
-const acepta_gatos = form.acepta_gatos.checked
-const acepta_perros = form.acepta_perros.checked
-const acepta_machos = form.acepta_machos.checked
-const acepta_hembras = form.acepta_hembras.checked
-const acepta_calle = form.acepta_calle.checked
-const acepta_propio = form.acepta_propio.checked
+const acepta_gatos = form.querySelector('[name="acepta_gatos"]').checked
+const acepta_perros = form.querySelector('[name="acepta_perros"]').checked
+const acepta_machos = form.querySelector('[name="acepta_machos"]').checked
+const acepta_hembras = form.querySelector('[name="acepta_hembras"]').checked
+const acepta_calle = form.querySelector('[name="acepta_calle"]').checked
+const acepta_propio = form.querySelector('[name="acepta_propio"]').checked
+const acepta_perras_calle = form.querySelector('[name="acepta_perras_calle"]').checked
 
 try{
 
@@ -117,7 +119,8 @@ acepta_perros,
 acepta_machos,
 acepta_hembras,
 acepta_calle,
-acepta_propio
+acepta_propio,
+acepta_perras_calle
 })
 .eq("id",selectedClinica.id)
 
@@ -139,6 +142,7 @@ acepta_machos,
 acepta_hembras,
 acepta_calle,
 acepta_propio,
+acepta_perras_calle,
 ativa:true
 }
 ])
@@ -214,6 +218,7 @@ Usuario: {clinica.usuario}
 <p>Hembras: {clinica.acepta_hembras ? "✔" : "❌"}</p>
 <p>Calle: {clinica.acepta_calle ? "✔" : "❌"}</p>
 <p>Propio: {clinica.acepta_propio ? "✔" : "❌"}</p>
+<p>Perras calle: {clinica.acepta_perras_calle ? "✔" : "❌"}</p>
 
 </div>
 
@@ -329,6 +334,7 @@ required
 <label><input type="checkbox" name="acepta_hembras" defaultChecked={selectedClinica?.acepta_hembras ?? true}/> Hembras</label>
 <label><input type="checkbox" name="acepta_calle" defaultChecked={selectedClinica?.acepta_calle ?? true}/> Calle</label>
 <label><input type="checkbox" name="acepta_propio" defaultChecked={selectedClinica?.acepta_propio ?? true}/> Propio</label>
+<label><input type="checkbox" name="acepta_perras_calle" defaultChecked={selectedClinica?.acepta_perras_calle ?? false}/> Perras de la calle</label>
 
 </div>
 
