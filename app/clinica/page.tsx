@@ -1,4 +1,3 @@
-```tsx
 "use client"
 
 import { useState } from "react"
@@ -9,17 +8,11 @@ export default function ClinicaPage(){
 
 const [usuario,setUsuario] = useState("")
 const [senha,setSenha] = useState("")
-const [loading,setLoading] = useState(false)
-
 const router = useRouter()
 
 async function login(e:any){
 
 e.preventDefault()
-
-setLoading(true)
-
-try{
 
 const {data,error} = await supabase
 .from("clinicas")
@@ -30,22 +23,12 @@ const {data,error} = await supabase
 
 if(error || !data){
 alert("Usuario o contraseña incorrectos")
-setLoading(false)
 return
 }
 
-localStorage.setItem("clinica_id",String(data.id))
+localStorage.setItem("clinica_id",data.id)
 
 router.push("/clinica/login")
-
-}catch(err){
-
-console.error("Error login:",err)
-alert("Error al iniciar sesión")
-
-}
-
-setLoading(false)
 
 }
 
@@ -62,7 +45,6 @@ Login Clínica
 <form onSubmit={login} className="space-y-4">
 
 <input
-required
 placeholder="Usuario"
 value={usuario}
 onChange={(e)=>setUsuario(e.target.value)}
@@ -70,7 +52,6 @@ className="w-full border p-2 rounded"
 />
 
 <input
-required
 type="password"
 placeholder="Contraseña"
 value={senha}
@@ -80,10 +61,9 @@ className="w-full border p-2 rounded"
 
 <button
 type="submit"
-disabled={loading}
-className="w-full bg-[#026A6A] text-white py-2 rounded hover:opacity-90 disabled:opacity-50"
+className="w-full bg-[#026A6A] text-white py-2 rounded hover:opacity-90"
 >
-{loading ? "Entrando..." : "Entrar"}
+Entrar
 </button>
 
 </form>
@@ -95,4 +75,3 @@ className="w-full bg-[#026A6A] text-white py-2 rounded hover:opacity-90 disabled
 )
 
 }
-```
