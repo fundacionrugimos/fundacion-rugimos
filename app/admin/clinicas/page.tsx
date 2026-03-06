@@ -28,6 +28,8 @@ export default function ClinicasPage() {
   const [selectedClinica, setSelectedClinica] = useState<Clinica | null>(null)
 
   const [horarios, setHorarios] = useState<any[]>([])
+  const [novaHora, setNovaHora] = useState("")
+  const [novosCupos, setNovosCupos] = useState(10)
 
   async function fetchClinicas() {
 
@@ -55,6 +57,35 @@ export default function ClinicasPage() {
     if(data){
       setHorarios(data)
     }
+
+  }
+
+  async function adicionarHorario(){
+
+    if(!novaHora){
+      alert("Selecciona una hora")
+      return
+    }
+
+    if(!selectedClinica){
+      return
+    }
+
+    await supabase
+      .from("horarios_clinica")
+      .insert([
+        {
+          clinica_id: selectedClinica.id,
+          hora: novaHora,
+          cupos_maximos: novosCupos,
+          cupos_ocupados: 0
+        }
+      ])
+
+    setNovaHora("")
+    setNovosCupos(10)
+
+    fetchHorarios(selectedClinica.id)
 
   }
 
@@ -200,17 +231,6 @@ export default function ClinicasPage() {
                 Usuario: {clinica.usuario}
               </p>
 
-              <div className="text-sm mt-2 text-gray-500">
-
-                <p>Gatos: {clinica.acepta_gatos ? "✔" : "❌"}</p>
-                <p>Perros: {clinica.acepta_perros ? "✔" : "❌"}</p>
-                <p>Machos: {clinica.acepta_machos ? "✔" : "❌"}</p>
-                <p>Hembras: {clinica.acepta_hembras ? "✔" : "❌"}</p>
-                <p>Calle: {clinica.acepta_calle ? "✔" : "❌"}</p>
-                <p>Propio: {clinica.acepta_propio ? "✔" : "❌"}</p>
-
-              </div>
-
               <span
                 className={`inline-block mt-3 px-3 py-1 text-xs rounded-full font-semibold ${
                   clinica.ativa
@@ -314,15 +334,39 @@ export default function ClinicasPage() {
                 required
               />
 
-              {/* HORARIOS */}
-
               {selectedClinica && (
 
-                <div className="mt-6">
+                <div>
 
-                  <h3 className="font-semibold text-[#026A6A] mb-3">
+                  <h3 className="font-semibold text-[#026A6A] mt-6 mb-2">
                     Horarios de cupos
                   </h3>
+
+                  <div className="flex gap-2 mb-4">
+
+                    <input
+                      type="time"
+                      value={novaHora}
+                      onChange={(e)=>setNovaHora(e.target.value)}
+                      className="border rounded-lg p-2"
+                    />
+
+                    <input
+                      type="number"
+                      value={novosCupos}
+                      onChange={(e)=>setNovosCupos(Number(e.target.value))}
+                      className="border rounded-lg p-2 w-24"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={adicionarHorario}
+                      className="bg-[#F47C2A] text-white px-4 rounded-lg"
+                    >
+                      + Añadir
+                    </button>
+
+                  </div>
 
                   <div className="space-y-2">
 
@@ -358,17 +402,6 @@ export default function ClinicasPage() {
                 </div>
 
               )}
-
-              <div className="grid grid-cols-2 gap-3 pt-3">
-
-                <label><input type="checkbox" name="acepta_gatos" defaultChecked={selectedClinica?.acepta_gatos ?? true}/> Gatos</label>
-                <label><input type="checkbox" name="acepta_perros" defaultChecked={selectedClinica?.acepta_perros ?? true}/> Perros</label>
-                <label><input type="checkbox" name="acepta_machos" defaultChecked={selectedClinica?.acepta_machos ?? true}/> Machos</label>
-                <label><input type="checkbox" name="acepta_hembras" defaultChecked={selectedClinica?.acepta_hembras ?? true}/> Hembras</label>
-                <label><input type="checkbox" name="acepta_calle" defaultChecked={selectedClinica?.acepta_calle ?? true}/> Calle</label>
-                <label><input type="checkbox" name="acepta_propio" defaultChecked={selectedClinica?.acepta_propio ?? true}/> Propio</label>
-
-              </div>
 
               <div className="flex justify-end gap-3 pt-4">
 
