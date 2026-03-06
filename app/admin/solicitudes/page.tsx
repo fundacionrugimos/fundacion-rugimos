@@ -1,4 +1,3 @@
-```typescript
 "use client"
 
 import { useEffect, useState } from "react"
@@ -58,7 +57,9 @@ if(!whatsappData) return
 
 const telefono = whatsappData.telefono.replace(/\D/g,"")
 
-const url = `https://wa.me/591${telefono}?text=${encodeURIComponent(whatsappData.mensaje)}`
+const mensaje = encodeURIComponent(whatsappData.mensaje)
+
+const url = "https://wa.me/591"+telefono+"?text="+mensaje
 
 window.open(url,"_blank")
 
@@ -149,17 +150,6 @@ let horarioId:any=null
 
 for(const clinica of clinicas){
 
-// restricción especial perra hembra de calle
-if(
-solicitud.especie==="Perro" &&
-solicitud.sexo==="Hembra" &&
-solicitud.tipo_animal?.toLowerCase().includes("calle")
-){
-if(!clinica.acepta_perras_calle) continue
-}
-
-// restricciones generales
-
 if(solicitud.especie==="Perro" && !clinica.acepta_perros) continue
 if(solicitud.especie==="Gato" && !clinica.acepta_gatos) continue
 
@@ -188,8 +178,6 @@ setLoadingId(null)
 return
 }
 
-const clinicaId = clinicaData.id
-
 const { data: horario, error: horarioError } = await supabase
 .from("horarios_clinica")
 .select("hora")
@@ -205,7 +193,7 @@ return
 const horaAsignada = horario.hora
 
 const codigoGenerado =
-`RUG-${new Date().getFullYear()}-${Math.floor(100000+Math.random()*900000)}`
+"RUG-"+new Date().getFullYear()+"-"+Math.floor(100000+Math.random()*900000)
 
 await supabase.from("solicitudes")
 .update({codigo:codigoGenerado})
@@ -225,7 +213,7 @@ peso:solicitud.peso,
 tipo_animal:solicitud.tipo_animal,
 zona:solicitud.ubicacion,
 estado:"Pendiente",
-clinica_id:clinicaId,
+clinica_id:clinicaData.id,
 horario_id:horarioId,
 hora:horaAsignada,
 foto_frente:solicitud.foto_frente,
@@ -234,33 +222,19 @@ foto_carnet:solicitud.foto_carnet
 
 }])
 
-const mensaje=`🐾 FUNDACIÓN RUGIMOS 🐾
-
-Tu solicitud fue APROBADA ✅
-
-Código Rugimos:
-${codigoGenerado}
-
-Mascota:
-${solicitud.nombre_animal} (${solicitud.especie})
-
-Clínica:
-${clinicaData.nome}
-
-Dirección:
-${clinicaData.endereco}
-
-Hora de llegada:
-${horaAsignada}
-
-INSTRUCCIONES
-
-• Ayuno comida: 8 horas
-• Ayuno agua: 4 horas
-• Llevar manta
-• Llegar 15 min antes
-
-Gracias por apoyar la esterilización responsable 💚`
+const mensaje =
+"🐾 FUNDACIÓN RUGIMOS 🐾\n\n"+
+"Tu solicitud fue APROBADA ✅\n\n"+
+"Código Rugimos:\n"+codigoGenerado+"\n\n"+
+"Mascota:\n"+solicitud.nombre_animal+" ("+solicitud.especie+")\n\n"+
+"Clínica:\n"+clinicaData.nombre+"\n\n"+
+"Hora de llegada:\n"+horaAsignada+"\n\n"+
+"INSTRUCCIONES\n\n"+
+"• Ayuno comida: 8 horas\n"+
+"• Ayuno agua: 4 horas\n"+
+"• Llevar manta\n"+
+"• Llegar 15 min antes\n\n"+
+"Gracias por apoyar la esterilización responsable 💚"
 
 setWhatsappData({
 telefono:solicitud.celular,
@@ -400,4 +374,3 @@ className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-xl"
 )
 
 }
-```
