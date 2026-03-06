@@ -27,6 +27,8 @@ export default function ClinicasPage() {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedClinica, setSelectedClinica] = useState<Clinica | null>(null)
 
+  const [horarios, setHorarios] = useState<any[]>([])
+
   async function fetchClinicas() {
 
     const { data, error } = await supabase
@@ -38,6 +40,20 @@ export default function ClinicasPage() {
       console.error('Error al cargar clínicas:', error)
     } else if (data) {
       setClinicas(data)
+    }
+
+  }
+
+  async function fetchHorarios(clinicaId:number){
+
+    const { data } = await supabase
+      .from("horarios_clinica")
+      .select("*")
+      .eq("clinica_id",clinicaId)
+      .order("hora",{ascending:true})
+
+    if(data){
+      setHorarios(data)
     }
 
   }
@@ -212,6 +228,7 @@ export default function ClinicasPage() {
               <button
                 onClick={() => {
                   setSelectedClinica(clinica)
+                  fetchHorarios(clinica.id)
                   setIsOpen(true)
                 }}
                 className="px-4 py-2 bg-[#026A6A] text-white rounded-lg"
@@ -240,7 +257,7 @@ export default function ClinicasPage() {
 
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
 
-          <div className="bg-white rounded-2xl p-8 w-full max-w-lg">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-lg overflow-y-auto max-h-[90vh]">
 
             <h2 className="text-2xl font-bold mb-6 text-[#026A6A]">
               {selectedClinica ? 'Editar Clínica' : 'Nueva Clínica'}
@@ -296,6 +313,51 @@ export default function ClinicasPage() {
                 className="w-full border rounded-lg p-2"
                 required
               />
+
+              {/* HORARIOS */}
+
+              {selectedClinica && (
+
+                <div className="mt-6">
+
+                  <h3 className="font-semibold text-[#026A6A] mb-3">
+                    Horarios de cupos
+                  </h3>
+
+                  <div className="space-y-2">
+
+                    {horarios.map((h)=>(
+                      
+                      <div key={h.id} className="flex justify-between bg-gray-100 p-2 rounded">
+
+                        <span>{h.hora.slice(0,5)} | {h.cupos_maximos} cupos</span>
+
+                        <button
+                          type="button"
+                          onClick={async ()=>{
+
+                            await supabase
+                              .from("horarios_clinica")
+                              .delete()
+                              .eq("id",h.id)
+
+                            fetchHorarios(selectedClinica.id)
+
+                          }}
+                          className="text-red-500"
+                        >
+                          eliminar
+                        </button>
+
+                      </div>
+
+                    ))}
+
+                  </div>
+
+                </div>
+
+              )}
 
               <div className="grid grid-cols-2 gap-3 pt-3">
 
