@@ -1,3 +1,4 @@
+```typescript
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -39,7 +40,7 @@ export default function ClinicasPage() {
       .order('zona', { ascending: true })
 
     if (error) {
-      console.error('Error al cargar clínicas:', error)
+      console.error(error)
     } else if (data) {
       setClinicas(data)
     }
@@ -62,14 +63,8 @@ export default function ClinicasPage() {
 
   async function adicionarHorario(){
 
-    if(!novaHora){
-      alert("Selecciona una hora")
-      return
-    }
-
-    if(!selectedClinica){
-      return
-    }
+    if(!novaHora) return
+    if(!selectedClinica) return
 
     await supabase
       .from("horarios_clinica")
@@ -95,24 +90,16 @@ export default function ClinicasPage() {
 
   async function toggleClinica(id: number, statusActual: boolean) {
 
-    if (!confirm('¿Seguro que deseas cambiar el estado de esta clínica?')) {
-      return
-    }
-
-    const { error } = await supabase
+    await supabase
       .from('clinicas')
       .update({ ativa: !statusActual })
       .eq('id', id)
 
-    if (error) {
-      console.error('Error al actualizar estado:', error)
-    } else {
-      fetchClinicas()
-    }
+    fetchClinicas()
 
   }
 
-  async function handleSave(e: any) {
+  async function handleSave(e:any){
 
     e.preventDefault()
 
@@ -132,47 +119,45 @@ export default function ClinicasPage() {
     const acepta_calle = form.acepta_calle.checked
     const acepta_propio = form.acepta_propio.checked
 
-    if (selectedClinica) {
+    if(selectedClinica){
 
       await supabase
-        .from('clinicas')
-        .update({
-          zona,
-          horario_inicio,
-          horario_fim,
-          se_por_dia,
-          usuario,
-          senha,
-          acepta_gatos,
-          acepta_perros,
-          acepta_machos,
-          acepta_hembras,
-          acepta_calle,
-          acepta_propio
-        })
-        .eq('id', selectedClinica.id)
+      .from("clinicas")
+      .update({
+        zona,
+        horario_inicio,
+        horario_fim,
+        se_por_dia,
+        usuario,
+        senha,
+        acepta_gatos,
+        acepta_perros,
+        acepta_machos,
+        acepta_hembras,
+        acepta_calle,
+        acepta_propio
+      })
+      .eq("id",selectedClinica.id)
 
-    } else {
+    }else{
 
       await supabase
-        .from('clinicas')
-        .insert([
-          {
-            zona,
-            horario_inicio,
-            horario_fim,
-            se_por_dia,
-            usuario,
-            senha,
-            acepta_gatos,
-            acepta_perros,
-            acepta_machos,
-            acepta_hembras,
-            acepta_calle,
-            acepta_propio,
-            ativa: true
-          }
-        ])
+      .from("clinicas")
+      .insert([{
+        zona,
+        horario_inicio,
+        horario_fim,
+        se_por_dia,
+        usuario,
+        senha,
+        acepta_gatos,
+        acepta_perros,
+        acepta_machos,
+        acepta_hembras,
+        acepta_calle,
+        acepta_propio,
+        ativa:true
+      }])
 
     }
 
@@ -193,11 +178,11 @@ export default function ClinicasPage() {
         </h1>
 
         <button
-          onClick={() => {
+          onClick={()=>{
             setSelectedClinica(null)
             setIsOpen(true)
           }}
-          className="bg-[#F47C2A] hover:opacity-90 text-white px-6 py-2 rounded-xl font-semibold shadow-md"
+          className="bg-[#F47C2A] text-white px-6 py-2 rounded-xl font-semibold"
         >
           + Nueva Clínica
         </button>
@@ -206,7 +191,7 @@ export default function ClinicasPage() {
 
       <div className="space-y-6">
 
-        {clinicas.map((clinica) => (
+        {clinicas.map((clinica)=>(
 
           <div
             key={clinica.id}
@@ -220,24 +205,14 @@ export default function ClinicasPage() {
               </p>
 
               <p className="text-gray-600">
-                Horario: {clinica.horario_inicio} - {clinica.horario_fim}
-              </p>
-
-              <p className="text-gray-600">
-                Cupos por día: {clinica.se_por_dia}
-              </p>
-
-              <p className="text-gray-600">
                 Usuario: {clinica.usuario}
               </p>
 
-              <span
-                className={`inline-block mt-3 px-3 py-1 text-xs rounded-full font-semibold ${
-                  clinica.ativa
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-700'
-                }`}
-              >
+              <span className={`inline-block mt-3 px-3 py-1 text-xs rounded-full font-semibold ${
+                clinica.ativa
+                ? 'bg-green-100 text-green-700'
+                : 'bg-red-100 text-red-700'
+              }`}>
                 {clinica.ativa ? 'Activa' : 'Inactiva'}
               </span>
 
@@ -246,7 +221,7 @@ export default function ClinicasPage() {
             <div className="flex gap-3">
 
               <button
-                onClick={() => {
+                onClick={()=>{
                   setSelectedClinica(clinica)
                   fetchHorarios(clinica.id)
                   setIsOpen(true)
@@ -257,12 +232,12 @@ export default function ClinicasPage() {
               </button>
 
               <button
-                onClick={() => toggleClinica(clinica.id, clinica.ativa)}
+                onClick={()=>toggleClinica(clinica.id,clinica.ativa)}
                 className={`px-4 py-2 rounded-lg text-white ${
-                  clinica.ativa ? 'bg-red-500' : 'bg-green-500'
+                  clinica.ativa ? 'bg-red-500':'bg-green-500'
                 }`}
               >
-                {clinica.ativa ? 'Desactivar' : 'Activar'}
+                {clinica.ativa ? 'Desactivar':'Activar'}
               </button>
 
             </div>
@@ -280,144 +255,80 @@ export default function ClinicasPage() {
           <div className="bg-white rounded-2xl p-8 w-full max-w-lg overflow-y-auto max-h-[90vh]">
 
             <h2 className="text-2xl font-bold mb-6 text-[#026A6A]">
-              {selectedClinica ? 'Editar Clínica' : 'Nueva Clínica'}
+              {selectedClinica ? 'Editar Clínica':'Nueva Clínica'}
             </h2>
 
             <form onSubmit={handleSave} className="space-y-4">
 
-              <input
-                name="zona"
-                placeholder="Zona"
-                defaultValue={selectedClinica?.zona || ''}
-                className="w-full border rounded-lg p-2"
-                required
-              />
+              <input name="zona" placeholder="Zona"
+              defaultValue={selectedClinica?.zona||''}
+              className="w-full border rounded-lg p-2"/>
 
-              <input
-                name="horario_inicio"
-                type="time"
-                defaultValue={selectedClinica?.horario_inicio || ''}
-                className="w-full border rounded-lg p-2"
-                required
-              />
+              <input name="usuario" placeholder="Usuario"
+              defaultValue={selectedClinica?.usuario||''}
+              className="w-full border rounded-lg p-2"/>
 
-              <input
-                name="horario_fim"
-                type="time"
-                defaultValue={selectedClinica?.horario_fim || ''}
-                className="w-full border rounded-lg p-2"
-                required
-              />
+              <input name="senha" placeholder="Contraseña"
+              defaultValue={selectedClinica?.senha||''}
+              className="w-full border rounded-lg p-2"/>
 
-              <input
-                name="se_por_dia"
-                type="number"
-                placeholder="Cupos por día"
-                defaultValue={selectedClinica?.se_por_dia || ''}
-                className="w-full border rounded-lg p-2"
-                required
-              />
+              <h3 className="font-semibold text-[#026A6A] mt-4">
+              Restricciones
+              </h3>
 
-              <input
-                name="usuario"
-                placeholder="Usuario"
-                defaultValue={selectedClinica?.usuario || ''}
-                className="w-full border rounded-lg p-2"
-                required
-              />
+              <div className="grid grid-cols-2 gap-2 text-sm">
 
-              <input
-                name="senha"
-                placeholder="Contraseña"
-                defaultValue={selectedClinica?.senha || ''}
-                className="w-full border rounded-lg p-2"
-                required
-              />
+              <label>
+              <input type="checkbox" name="acepta_gatos"
+              defaultChecked={selectedClinica?.acepta_gatos ?? true}/>
+              Gatos
+              </label>
 
-              {selectedClinica && (
+              <label>
+              <input type="checkbox" name="acepta_perros"
+              defaultChecked={selectedClinica?.acepta_perros ?? true}/>
+              Perros
+              </label>
 
-                <div>
+              <label>
+              <input type="checkbox" name="acepta_machos"
+              defaultChecked={selectedClinica?.acepta_machos ?? true}/>
+              Machos
+              </label>
 
-                  <h3 className="font-semibold text-[#026A6A] mt-6 mb-2">
-                    Horarios de cupos
-                  </h3>
+              <label>
+              <input type="checkbox" name="acepta_hembras"
+              defaultChecked={selectedClinica?.acepta_hembras ?? true}/>
+              Hembras
+              </label>
 
-                  <div className="flex gap-2 mb-4">
+              <label>
+              <input type="checkbox" name="acepta_calle"
+              defaultChecked={selectedClinica?.acepta_calle ?? true}/>
+              Calle
+              </label>
 
-                    <input
-                      type="time"
-                      value={novaHora}
-                      onChange={(e)=>setNovaHora(e.target.value)}
-                      className="border rounded-lg p-2"
-                    />
+              <label>
+              <input type="checkbox" name="acepta_propio"
+              defaultChecked={selectedClinica?.acepta_propio ?? true}/>
+              Propio
+              </label>
 
-                    <input
-                      type="number"
-                      value={novosCupos}
-                      onChange={(e)=>setNovosCupos(Number(e.target.value))}
-                      className="border rounded-lg p-2 w-24"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={adicionarHorario}
-                      className="bg-[#F47C2A] text-white px-4 rounded-lg"
-                    >
-                      + Añadir
-                    </button>
-
-                  </div>
-
-                  <div className="space-y-2">
-
-                    {horarios.map((h)=>(
-                      
-                      <div key={h.id} className="flex justify-between bg-gray-100 p-2 rounded">
-
-                        <span>{h.hora.slice(0,5)} | {h.cupos_maximos} cupos</span>
-
-                        <button
-                          type="button"
-                          onClick={async ()=>{
-
-                            await supabase
-                              .from("horarios_clinica")
-                              .delete()
-                              .eq("id",h.id)
-
-                            fetchHorarios(selectedClinica.id)
-
-                          }}
-                          className="text-red-500"
-                        >
-                          eliminar
-                        </button>
-
-                      </div>
-
-                    ))}
-
-                  </div>
-
-                </div>
-
-              )}
+              </div>
 
               <div className="flex justify-end gap-3 pt-4">
 
                 <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="px-4 py-2 bg-gray-300 rounded-lg"
-                >
-                  Cancelar
+                type="button"
+                onClick={()=>setIsOpen(false)}
+                className="px-4 py-2 bg-gray-300 rounded-lg">
+                Cancelar
                 </button>
 
                 <button
-                  type="submit"
-                  className="px-4 py-2 bg-[#F47C2A] text-white rounded-lg"
-                >
-                  Guardar
+                type="submit"
+                className="px-4 py-2 bg-[#F47C2A] text-white rounded-lg">
+                Guardar
                 </button>
 
               </div>
@@ -435,3 +346,4 @@ export default function ClinicasPage() {
   )
 
 }
+```
