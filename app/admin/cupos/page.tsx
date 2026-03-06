@@ -1,4 +1,3 @@
-:::writing{variant="standard" id="cupos-final-working"}
 "use client"
 
 import { useEffect, useState } from "react"
@@ -80,4 +79,3 @@ export default function Page() {
   )
 
 }
-:::
