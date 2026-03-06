@@ -83,16 +83,19 @@ Cerrar sesión
 📨 Solicitudes
 </h2>
 
-{pendentes > 0 ? (
-<span className="inline-block mt-4 bg-[#F47C3C] text-white px-4 py-2 rounded-full">
-Pendientes: {pendentes}
-</span>
-) : (
-<span className="inline-block mt-4 bg-green-600 text-white px-4 py-2 rounded-full">
-Sin pendientes
-</span>
+{pendentes > 0 ? ( <span className="inline-block mt-4 bg-[#F47C3C] text-white px-4 py-2 rounded-full">
+Pendientes: {pendentes} </span>
+) : ( <span className="inline-block mt-4 bg-green-600 text-white px-4 py-2 rounded-full">
+Sin pendientes </span>
 )}
 
+</div>
+</Link>
+
+<Link href="/admin/cupos">
+<div className="bg-white rounded-2xl shadow-xl p-8 hover:scale-105 cursor-pointer">
+<h2 className="text-xl font-bold text-[#02686A]">📊 Cupos</h2>
+<p className="text-gray-600 mt-2">Vagas por clínica</p>
 </div>
 </Link>
 
