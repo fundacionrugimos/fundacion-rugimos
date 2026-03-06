@@ -43,9 +43,11 @@ return horarios.find((h: any) => {
 
 }
 
-return ( <div style={{padding:40}}>
+return (
 
 ```
+<div style={{ padding: 40 }}>
+
   <h1>Cupos por Clínica</h1>
 
   <table border={1} cellPadding={10}>
@@ -60,10 +62,10 @@ return ( <div style={{padding:40}}>
 
     <tbody>
 
-      {clinicas.map((c:any) => {
+      {clinicas.map((c: any) => {
 
-        const h8 = obterHorario(c.id,"08:00")
-        const h10 = obterHorario(c.id,"10:00")
+        const h8 = obterHorario(c.id, "08:00")
+        const h10 = obterHorario(c.id, "10:00")
 
         return (
           <tr key={c.id}>
