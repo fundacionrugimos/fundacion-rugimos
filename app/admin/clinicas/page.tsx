@@ -22,7 +22,7 @@ type Clinica = {
 export default function ClinicasPage(){
 
 const [clinicas,setClinicas] = useState<Clinica[]>([])
-const [selectedClinica,setSelectedClinica] = useState<Clinica | null>(null)
+const [selectedClinica,setSelectedClinica] = useState<Clinica|null>(null)
 const [isOpen,setIsOpen] = useState(false)
 
 async function fetchClinicas(){
@@ -32,9 +32,7 @@ const {data} = await supabase
 .select("*")
 .order("zona",{ascending:true})
 
-if(data){
-setClinicas(data)
-}
+if(data) setClinicas(data)
 
 }
 
@@ -70,8 +68,6 @@ const acepta_hembras = form.acepta_hembras.checked
 const acepta_calle = form.acepta_calle.checked
 const acepta_propio = form.acepta_propio.checked
 
-if(selectedClinica){
-
 await supabase
 .from("clinicas")
 .update({
@@ -85,12 +81,9 @@ acepta_hembras,
 acepta_calle,
 acepta_propio
 })
-.eq("id",selectedClinica.id)
-
-}
+.eq("id",selectedClinica?.id)
 
 setIsOpen(false)
-setSelectedClinica(null)
 fetchClinicas()
 
 }
@@ -193,6 +186,10 @@ name="senha"
 defaultValue={selectedClinica.senha}
 className="w-full border p-2 rounded"
 />
+
+<h3 className="font-semibold text-[#026A6A] mt-4">
+Restricciones
+</h3>
 
 <div className="grid grid-cols-2 gap-2 text-sm">
 
