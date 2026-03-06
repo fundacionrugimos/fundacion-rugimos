@@ -1,3 +1,4 @@
+```typescript
 "use client"
 
 import { useEffect, useState } from "react"
@@ -148,8 +149,7 @@ let horarioId:any=null
 
 for(const clinica of clinicas){
 
-// REGLA PERRO HEMBRA DE LA CALLE
-
+// restricción especial perra hembra de calle
 if(
 solicitud.especie==="Perro" &&
 solicitud.sexo==="Hembra" &&
@@ -157,6 +157,8 @@ solicitud.tipo_animal?.toLowerCase().includes("calle")
 ){
 if(!clinica.acepta_perras_calle) continue
 }
+
+// restricciones generales
 
 if(solicitud.especie==="Perro" && !clinica.acepta_perros) continue
 if(solicitud.especie==="Gato" && !clinica.acepta_gatos) continue
@@ -181,7 +183,7 @@ break
 }
 
 if(!clinicaData){
-alert("No hay clínicas disponibles para este tipo de animal")
+alert("Todos los cupos están ocupados. Próximamente se habilitarán nuevos cupos.")
 setLoadingId(null)
 return
 }
@@ -398,3 +400,4 @@ className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-xl"
 )
 
 }
+```
