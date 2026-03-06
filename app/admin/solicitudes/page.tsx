@@ -148,10 +148,12 @@ let horarioId:any=null
 
 for(const clinica of clinicas){
 
+// REGLA PERRO HEMBRA DE LA CALLE
+
 if(
 solicitud.especie==="Perro" &&
 solicitud.sexo==="Hembra" &&
-solicitud.tipo_animal==="De la calle"
+solicitud.tipo_animal?.toLowerCase().includes("calle")
 ){
 if(!clinica.acepta_perras_calle) continue
 }
@@ -162,7 +164,7 @@ if(solicitud.especie==="Gato" && !clinica.acepta_gatos) continue
 if(solicitud.sexo==="Macho" && !clinica.acepta_machos) continue
 if(solicitud.sexo==="Hembra" && !clinica.acepta_hembras) continue
 
-if(solicitud.tipo_animal==="De la calle" && !clinica.acepta_calle) continue
+if(solicitud.tipo_animal?.toLowerCase().includes("calle") && !clinica.acepta_calle) continue
 if(solicitud.tipo_animal==="Propio" && !clinica.acepta_propio) continue
 
 const {data:horarioDisponible,error:reservaError}=await supabase.rpc(
