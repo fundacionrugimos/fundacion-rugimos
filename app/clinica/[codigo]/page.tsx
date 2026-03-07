@@ -4,56 +4,56 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useParams } from "next/navigation"
 
-export default function PacienteClinica(){
+export default function PacienteClinica() {
 
 const params = useParams()
 const codigo = params.codigo
 
-const [registro,setRegistro] = useState<any>(null)
+const [registro, setRegistro] = useState<any>(null)
 
-async function cargar(){
+async function cargar() {
 
-const { data,error } = await supabase
+const { data } = await supabase
 .from("registros")
 .select("*")
-.eq("codigo",codigo)
+.eq("codigo", codigo)
 .single()
 
-if(data){
+if (data) {
 setRegistro(data)
 }
 
 }
 
-useEffect(()=>{
+useEffect(() => {
 cargar()
-},[])
+}, [])
 
-async function marcarApto(){
+async function marcarApto() {
 
 await supabase
 .from("registros")
-.update({estado:"Apto"})
-.eq("codigo",codigo)
+.update({ estado: "Apto" })
+.eq("codigo", codigo)
 
 alert("Paciente marcado como APTO")
 
 }
 
-async function marcarNoApto(){
+async function marcarNoApto() {
 
 await supabase
 .from("registros")
-.update({estado:"No Apto"})
-.eq("codigo",codigo)
+.update({ estado: "No Apto" })
+.eq("codigo", codigo)
 
 alert("Paciente marcado como NO APTO")
 
 }
 
-if(!registro){
+if (!registro) {
 
-return(
+return (
 <div className="min-h-screen flex items-center justify-center">
 Cargando paciente...
 </div>
@@ -61,7 +61,7 @@ Cargando paciente...
 
 }
 
-return(
+return (
 
 <div className="min-h-screen bg-gray-100 flex items-center justify-center p-8">
 
@@ -90,7 +90,6 @@ Datos del Responsable
 
 </div>
 
-
 {/* ANIMAL */}
 
 <div className="bg-white rounded-xl shadow-md p-6">
@@ -112,7 +111,6 @@ Datos del Animal
 
 </div>
 
-
 {/* CIRUGIA */}
 
 <div className="bg-white rounded-xl shadow-md p-6">
@@ -126,7 +124,6 @@ Datos de la Cirugía
 </p>
 
 </div>
-
 
 {/* FOTOS */}
 
@@ -154,7 +151,6 @@ Fotos del Registro
 
 </div>
 
-
 {/* BOTONES */}
 
 <div className="flex justify-center gap-6 pt-4">
@@ -180,3 +176,5 @@ NO APTO
 </div>
 
 )
+
+}
