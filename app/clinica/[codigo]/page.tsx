@@ -63,22 +63,43 @@ Cargando paciente...
 
 return(
 
-<div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
+<div className="min-h-screen bg-gray-100 flex items-center justify-center p-8">
 
-<div className="bg-white rounded-xl shadow-lg p-8 max-w-xl w-full">
+<div className="w-full max-w-3xl space-y-6">
 
-<h1 className="text-2xl font-bold mb-6">
+<h1 className="text-3xl font-bold text-center text-gray-800">
 Paciente {registro.codigo}
 </h1>
 
-<h2 className="font-semibold mt-4 mb-2">Responsable</h2>
+{/* RESPONSABLE */}
+
+<div className="bg-white rounded-xl shadow-md p-6">
+
+<h2 className="text-xl font-semibold text-[#026A6A] mb-4">
+Datos del Responsable
+</h2>
+
+<div className="grid grid-cols-2 gap-4 text-gray-700">
 
 <p><b>Nombre:</b> {registro.nombre_responsable}</p>
 <p><b>Teléfono:</b> {registro.telefono}</p>
 <p><b>CI:</b> {registro.ci}</p>
 <p><b>Zona:</b> {registro.zona}</p>
 
-<h2 className="font-semibold mt-6 mb-2">Mascota</h2>
+</div>
+
+</div>
+
+
+{/* ANIMAL */}
+
+<div className="bg-white rounded-xl shadow-md p-6">
+
+<h2 className="text-xl font-semibold text-[#026A6A] mb-4">
+Datos del Animal
+</h2>
+
+<div className="grid grid-cols-2 gap-4 text-gray-700">
 
 <p><b>Nombre:</b> {registro.nombre_animal}</p>
 <p><b>Especie:</b> {registro.especie}</p>
@@ -87,40 +108,67 @@ Paciente {registro.codigo}
 <p><b>Peso:</b> {registro.peso}</p>
 <p><b>Tipo:</b> {registro.tipo_animal}</p>
 
-<h2 className="font-semibold mt-6 mb-2">Cirugía</h2>
+</div>
 
-<p><b>Hora:</b> {registro.hora}</p>
+</div>
 
-<h2 className="font-semibold mt-6 mb-3">Fotos</h2>
 
-<div className="flex gap-3">
+{/* CIRUGIA */}
+
+<div className="bg-white rounded-xl shadow-md p-6">
+
+<h2 className="text-xl font-semibold text-[#026A6A] mb-4">
+Datos de la Cirugía
+</h2>
+
+<p className="text-gray-700">
+<b>Hora asignada:</b> {registro.hora || "No asignada"}
+</p>
+
+</div>
+
+
+{/* FOTOS */}
+
+<div className="bg-white rounded-xl shadow-md p-6">
+
+<h2 className="text-xl font-semibold text-[#026A6A] mb-4">
+Fotos del Registro
+</h2>
+
+<div className="flex gap-4">
 
 {registro.foto_frente && (
-<img src={registro.foto_frente} className="w-24 h-24 object-cover rounded"/>
+<img src={registro.foto_frente} className="w-32 h-32 object-cover rounded-lg shadow"/>
 )}
 
 {registro.foto_lado && (
-<img src={registro.foto_lado} className="w-24 h-24 object-cover rounded"/>
+<img src={registro.foto_lado} className="w-32 h-32 object-cover rounded-lg shadow"/>
 )}
 
 {registro.foto_carnet && (
-<img src={registro.foto_carnet} className="w-24 h-24 object-cover rounded"/>
+<img src={registro.foto_carnet} className="w-32 h-32 object-cover rounded-lg shadow"/>
 )}
 
 </div>
 
-<div className="flex gap-4 mt-8">
+</div>
+
+
+{/* BOTONES */}
+
+<div className="flex justify-center gap-6 pt-4">
 
 <button
 onClick={marcarApto}
-className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold"
+className="bg-green-600 hover:bg-green-700 text-white px-10 py-3 rounded-xl font-semibold text-lg shadow"
 >
 APTO
 </button>
 
 <button
 onClick={marcarNoApto}
-className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold"
+className="bg-red-600 hover:bg-red-700 text-white px-10 py-3 rounded-xl font-semibold text-lg shadow"
 >
 NO APTO
 </button>
@@ -132,5 +180,3 @@ NO APTO
 </div>
 
 )
-
-}
