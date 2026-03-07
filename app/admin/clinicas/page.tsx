@@ -4,50 +4,62 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 interface Clinica {
-  id: number
-  zona: string
-  horario_inicio: string
-  horario_fim: string
-  se_por_dia: number
-  ativa: boolean
-  usuario: string
-  senha: string
+id:number
+zona:string
+horario_inicio:string
+horario_fim:string
+se_por_dia:number
+ativa:boolean
+usuario:string
+senha:string
 
-  acepta_gatos: boolean
-  acepta_perros: boolean
-  acepta_machos: boolean
-  acepta_hembras: boolean
-  acepta_calle: boolean
-  acepta_propio: boolean
-  acepta_perras_calle: boolean
+acepta_gatos:boolean
+acepta_perros:boolean
+acepta_machos:boolean
+acepta_hembras:boolean
+acepta_calle:boolean
+acepta_propio:boolean
+acepta_perras_calle:boolean
+}
+
+interface Horario{
+id:number
+hora:string
+cupos:number
+clinica_id:number
 }
 
 export default function ClinicasPage(){
 
-const [clinicas,setClinicas] = useState<Clinica[]>([])
-const [isOpen,setIsOpen] = useState(false)
-const [selectedClinica,setSelectedClinica] = useState<Clinica|null>(null)
-const [loading,setLoading] = useState(false)
+const [clinicas,setClinicas]=useState<Clinica[]>([])
+const [horarios,setHorarios]=useState<Horario[]>([])
+const [isOpen,setIsOpen]=useState(false)
+const [selectedClinica,setSelectedClinica]=useState<Clinica|null>(null)
+const [loading,setLoading]=useState(false)
+
+const [hora,setHora]=useState("")
+const [cupos,setCupos]=useState(10)
 
 async function fetchClinicas(){
 
-try{
-
-const {data,error} = await supabase
+const {data,error}=await supabase
 .from("clinicas")
 .select("*")
 .order("zona",{ascending:true})
 
-if(error){
-console.error("Error cargando clínicas:",error)
-return
+if(data)setClinicas(data)
+
 }
 
-if(data) setClinicas(data)
+async function fetchHorarios(clinicaId:number){
 
-}catch(err){
-console.error("Error:",err)
-}
+const {data}=await supabase
+.from("horarios_clinica")
+.select("*")
+.eq("clinica_id",clinicaId)
+.order("hora")
+
+if(data)setHorarios(data)
 
 }
 
@@ -57,12 +69,6 @@ fetchClinicas()
 
 async function toggleClinica(id:number,ativa:boolean){
 
-if(!confirm("¿Seguro que deseas cambiar el estado de esta clínica?")){
-return
-}
-
-try{
-
 await supabase
 .from("clinicas")
 .update({ativa:!ativa})
@@ -70,38 +76,31 @@ await supabase
 
 fetchClinicas()
 
-}catch(err){
-console.error("Error cambiando estado:",err)
-}
-
 }
 
 async function handleSave(e:any){
 
 e.preventDefault()
 
-if(loading) return
-
+if(loading)return
 setLoading(true)
 
-const form = e.target
+const form=e.target
 
-const zona = form.zona.value
-const horario_inicio = form.horario_inicio.value
-const horario_fim = form.horario_fim.value
-const se_por_dia = Number(form.se_por_dia.value)
-const usuario = form.usuario.value
-const senha = form.senha.value
+const zona=form.zona.value
+const horario_inicio=form.horario_inicio.value
+const horario_fim=form.horario_fim.value
+const se_por_dia=Number(form.se_por_dia.value)
+const usuario=form.usuario.value
+const senha=form.senha.value
 
-const acepta_gatos = form.querySelector('[name="acepta_gatos"]').checked
-const acepta_perros = form.querySelector('[name="acepta_perros"]').checked
-const acepta_machos = form.querySelector('[name="acepta_machos"]').checked
-const acepta_hembras = form.querySelector('[name="acepta_hembras"]').checked
-const acepta_calle = form.querySelector('[name="acepta_calle"]').checked
-const acepta_propio = form.querySelector('[name="acepta_propio"]').checked
-const acepta_perras_calle = form.querySelector('[name="acepta_perras_calle"]').checked
-
-try{
+const acepta_gatos=form.querySelector('[name="acepta_gatos"]').checked
+const acepta_perros=form.querySelector('[name="acepta_perros"]').checked
+const acepta_machos=form.querySelector('[name="acepta_machos"]').checked
+const acepta_hembras=form.querySelector('[name="acepta_hembras"]').checked
+const acepta_calle=form.querySelector('[name="acepta_calle"]').checked
+const acepta_propio=form.querySelector('[name="acepta_propio"]').checked
+const acepta_perras_calle=form.querySelector('[name="acepta_perras_calle"]').checked
 
 if(selectedClinica){
 
@@ -128,8 +127,7 @@ acepta_perras_calle
 
 await supabase
 .from("clinicas")
-.insert([
-{
+.insert([{
 zona,
 horario_inicio,
 horario_fim,
@@ -144,13 +142,8 @@ acepta_calle,
 acepta_propio,
 acepta_perras_calle,
 ativa:true
-}
-])
+}])
 
-}
-
-}catch(err){
-console.error("Error guardando clínica:",err)
 }
 
 setLoading(false)
@@ -158,6 +151,33 @@ setIsOpen(false)
 setSelectedClinica(null)
 
 fetchClinicas()
+
+}
+
+async function agregarHorario(){
+
+if(!hora||!selectedClinica)return
+
+await supabase
+.from("horarios_clinica")
+.insert([{
+hora,
+cupos,
+clinica_id:selectedClinica.id
+}])
+
+fetchHorarios(selectedClinica.id)
+
+}
+
+async function eliminarHorario(id:number){
+
+await supabase
+.from("horarios_clinica")
+.delete()
+.eq("id",id)
+
+if(selectedClinica)fetchHorarios(selectedClinica.id)
 
 }
 
@@ -172,14 +192,14 @@ Gestión de Clínicas 🏥
 </h1>
 
 <button
-onClick={()=>{
-setSelectedClinica(null)
-setIsOpen(true)
-}}
-className="bg-[#F47C2A] hover:opacity-90 text-white px-6 py-2 rounded-xl font-semibold shadow-md"
+onClick={()=>{setSelectedClinica(null);setIsOpen(true)}}
+className="bg-[#F47C2A] text-white px-6 py-2 rounded-xl"
+
 >
-+ Nueva Clínica
-</button>
+
+* Nueva Clínica
+
+  </button>
 
 </div>
 
@@ -187,10 +207,7 @@ className="bg-[#F47C2A] hover:opacity-90 text-white px-6 py-2 rounded-xl font-se
 
 {clinicas.map((clinica)=>(
 
-<div
-key={clinica.id}
-className="bg-white p-6 rounded-2xl shadow-md flex justify-between items-center"
->
+<div key={clinica.id} className="bg-white p-6 rounded-2xl shadow-md flex justify-between">
 
 <div>
 
@@ -198,40 +215,24 @@ className="bg-white p-6 rounded-2xl shadow-md flex justify-between items-center"
 Zona: {clinica.zona}
 </p>
 
-<p className="text-gray-600">
-Horario: {clinica.horario_inicio} - {clinica.horario_fim}
-</p>
+<p>Horario: {clinica.horario_inicio} - {clinica.horario_fim}</p>
+<p>Cupos por día: {clinica.se_por_dia}</p>
+<p>Usuario: {clinica.usuario}</p>
 
-<p className="text-gray-600">
-Cupos por día: {clinica.se_por_dia}
-</p>
+<div className="text-sm mt-2">
 
-<p className="text-gray-600">
-Usuario: {clinica.usuario}
-</p>
-
-<div className="text-sm mt-2 text-gray-500">
-
-<p>Gatos: {clinica.acepta_gatos ? "✔" : "❌"}</p>
-<p>Perros: {clinica.acepta_perros ? "✔" : "❌"}</p>
-<p>Machos: {clinica.acepta_machos ? "✔" : "❌"}</p>
-<p>Hembras: {clinica.acepta_hembras ? "✔" : "❌"}</p>
-<p>Calle: {clinica.acepta_calle ? "✔" : "❌"}</p>
-<p>Propio: {clinica.acepta_propio ? "✔" : "❌"}</p>
-<p>Perras calle: {clinica.acepta_perras_calle ? "✔" : "❌"}</p>
+<p>Gatos: {clinica.acepta_gatos?"✔":"❌"}</p>
+<p>Perros: {clinica.acepta_perros?"✔":"❌"}</p>
+<p>Machos: {clinica.acepta_machos?"✔":"❌"}</p>
+<p>Hembras: {clinica.acepta_hembras?"✔":"❌"}</p>
+<p>Calle: {clinica.acepta_calle?"✔":"❌"}</p>
+<p>Propio: {clinica.acepta_propio?"✔":"❌"}</p>
+<p>Perras calle: {clinica.acepta_perras_calle?"✔":"❌"}</p>
 
 </div>
 
-<span
-className={
-"inline-block mt-3 px-3 py-1 text-xs rounded-full font-semibold "+
-(clinica.ativa
-? "bg-green-100 text-green-700"
-: "bg-red-100 text-red-700")
-}
->
-{clinica.ativa ? "Activa" : "Inactiva"}
-</span>
+<span className={clinica.ativa?"text-green-700":"text-red-700"}>
+{clinica.ativa?"Activa":"Inactiva"} </span>
 
 </div>
 
@@ -240,22 +241,22 @@ className={
 <button
 onClick={()=>{
 setSelectedClinica(clinica)
+fetchHorarios(clinica.id)
 setIsOpen(true)
 }}
 className="px-4 py-2 bg-[#026A6A] text-white rounded-lg"
+
 >
-Editar
-</button>
+
+Editar </button>
 
 <button
 onClick={()=>toggleClinica(clinica.id,clinica.ativa)}
-className={
-"px-4 py-2 rounded-lg text-white "+
-(clinica.ativa ? "bg-red-500":"bg-green-500")
-}
+className="px-4 py-2 bg-red-500 text-white rounded-lg"
+
 >
-{clinica.ativa ? "Desactivar":"Activar"}
-</button>
+
+{clinica.ativa?"Desactivar":"Activar"} </button>
 
 </div>
 
@@ -272,88 +273,64 @@ className={
 <div className="bg-white rounded-2xl p-8 w-full max-w-lg">
 
 <h2 className="text-2xl font-bold mb-6 text-[#026A6A]">
-{selectedClinica ? "Editar Clínica":"Nueva Clínica"}
+Editar Clínica
 </h2>
 
 <form onSubmit={handleSave} className="space-y-4">
 
-<input
-name="zona"
-placeholder="Zona"
-defaultValue={selectedClinica?.zona || ""}
-className="w-full border rounded-lg p-2"
-required
-/>
+<input name="zona" defaultValue={selectedClinica?.zona||""} className="w-full border p-2"/>
 
-<input
-name="horario_inicio"
-type="time"
-defaultValue={selectedClinica?.horario_inicio || ""}
-className="w-full border rounded-lg p-2"
-required
-/>
+<input name="horario_inicio" type="time" defaultValue={selectedClinica?.horario_inicio||""} className="w-full border p-2"/>
 
-<input
-name="horario_fim"
-type="time"
-defaultValue={selectedClinica?.horario_fim || ""}
-className="w-full border rounded-lg p-2"
-required
-/>
+<input name="horario_fim" type="time" defaultValue={selectedClinica?.horario_fim||""} className="w-full border p-2"/>
 
-<input
-name="se_por_dia"
-type="number"
-placeholder="Cupos por día"
-defaultValue={selectedClinica?.se_por_dia || ""}
-className="w-full border rounded-lg p-2"
-required
-/>
+<input name="se_por_dia" type="number" defaultValue={selectedClinica?.se_por_dia||""} className="w-full border p-2"/>
 
-<input
-name="usuario"
-placeholder="Usuario"
-defaultValue={selectedClinica?.usuario || ""}
-className="w-full border rounded-lg p-2"
-required
-/>
+<input name="usuario" defaultValue={selectedClinica?.usuario||""} className="w-full border p-2"/>
 
-<input
-name="senha"
-placeholder="Contraseña"
-defaultValue={selectedClinica?.senha || ""}
-className="w-full border rounded-lg p-2"
-required
-/>
+<input name="senha" defaultValue={selectedClinica?.senha||""} className="w-full border p-2"/>
 
-<div className="grid grid-cols-2 gap-3 pt-3">
+<div className="grid grid-cols-2 gap-3">
 
-<label><input type="checkbox" name="acepta_gatos" defaultChecked={selectedClinica?.acepta_gatos ?? true}/> Gatos</label>
-<label><input type="checkbox" name="acepta_perros" defaultChecked={selectedClinica?.acepta_perros ?? true}/> Perros</label>
-<label><input type="checkbox" name="acepta_machos" defaultChecked={selectedClinica?.acepta_machos ?? true}/> Machos</label>
-<label><input type="checkbox" name="acepta_hembras" defaultChecked={selectedClinica?.acepta_hembras ?? true}/> Hembras</label>
-<label><input type="checkbox" name="acepta_calle" defaultChecked={selectedClinica?.acepta_calle ?? true}/> Calle</label>
-<label><input type="checkbox" name="acepta_propio" defaultChecked={selectedClinica?.acepta_propio ?? true}/> Propio</label>
-<label><input type="checkbox" name="acepta_perras_calle" defaultChecked={selectedClinica?.acepta_perras_calle ?? false}/> Perras de la calle</label>
+<label><input type="checkbox" name="acepta_gatos" defaultChecked={selectedClinica?.acepta_gatos}/> Gatos</label> <label><input type="checkbox" name="acepta_perros" defaultChecked={selectedClinica?.acepta_perros}/> Perros</label> <label><input type="checkbox" name="acepta_machos" defaultChecked={selectedClinica?.acepta_machos}/> Machos</label> <label><input type="checkbox" name="acepta_hembras" defaultChecked={selectedClinica?.acepta_hembras}/> Hembras</label> <label><input type="checkbox" name="acepta_calle" defaultChecked={selectedClinica?.acepta_calle}/> Calle</label> <label><input type="checkbox" name="acepta_propio" defaultChecked={selectedClinica?.acepta_propio}/> Propio</label> <label><input type="checkbox" name="acepta_perras_calle" defaultChecked={selectedClinica?.acepta_perras_calle}/> Perras de la calle</label>
+
+</div>
+
+<h3 className="font-bold mt-6">Horarios de cupos</h3>
+
+<div className="flex gap-2">
+
+<input type="time" value={hora} onChange={(e)=>setHora(e.target.value)} className="border p-2"/>
+
+<input type="number" value={cupos} onChange={(e)=>setCupos(Number(e.target.value))} className="border p-2 w-20"/>
+
+<button type="button" onClick={agregarHorario} className="bg-[#F47C2A] text-white px-3 py-1 rounded">
++ Añadir
+</button>
+
+</div>
+
+<div className="mt-3">
+
+{horarios.map(h=>(
+
+<div key={h.id} className="flex justify-between text-sm border-b py-1">
+<span>{h.hora} | {h.cupos} cupos</span>
+<button type="button" onClick={()=>eliminarHorario(h.id)} className="text-red-600">
+eliminar
+</button>
+</div>
+))}
 
 </div>
 
 <div className="flex justify-end gap-3 pt-4">
 
-<button
-type="button"
-onClick={()=>setIsOpen(false)}
-className="px-4 py-2 bg-gray-300 rounded-lg"
->
-Cancelar
-</button>
+<button type="button" onClick={()=>setIsOpen(false)} className="bg-gray-300 px-4 py-2 rounded">
+Cancelar </button>
 
-<button
-type="submit"
-disabled={loading}
-className="px-4 py-2 bg-[#F47C2A] text-white rounded-lg hover:opacity-90"
->
-{loading ? "Guardando..." : "Guardar"}
+<button type="submit" disabled={loading} className="bg-[#F47C2A] text-white px-4 py-2 rounded">
+Guardar
 </button>
 
 </div>
