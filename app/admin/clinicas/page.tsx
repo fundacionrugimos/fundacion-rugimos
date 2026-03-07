@@ -78,9 +78,7 @@ fetchClinicas()
 
 async function toggleClinica(id:number,ativa:boolean){
 
-if(!confirm("¿Seguro que deseas cambiar el estado de esta clínica?")){
-return
-}
+if(!confirm("¿Seguro que deseas cambiar el estado de esta clínica?")) return
 
 const {error}=await supabase
 .from("clinicas")
@@ -178,22 +176,33 @@ setSelectedClinica(null)
 
 async function agregarHorario(){
 
-if(!hora||!selectedClinica)return
+if(!selectedClinica){
+alert("Seleccione una clínica primero")
+return
+}
+
+if(!hora){
+alert("Seleccione una hora")
+return
+}
 
 const {error}=await supabase
 .from("horarios_clinica")
 .insert([{
-hora,
-cupos,
+hora:hora,
+cupos:Number(cupos),
 clinica_id:selectedClinica.id
 }])
 
 if(error){
-console.error(error)
+console.error("Error insertando horario:",error)
+alert("Error creando horario")
 return
 }
 
 setHora("")
+setCupos(10)
+
 await fetchHorarios(selectedClinica.id)
 
 }
@@ -208,7 +217,7 @@ const {error}=await supabase
 .eq("id",id)
 
 if(error){
-console.error(error)
+console.error("Error eliminando horario:",error)
 return
 }
 
@@ -339,9 +348,11 @@ className="px-4 py-2 bg-red-500 text-white rounded-lg"
 
 <input type="number" value={cupos} onChange={(e)=>setCupos(Number(e.target.value))} className="border p-2 w-20"/>
 
-<button type="button" onClick={agregarHorario} className="bg-[#F47C2A] text-white px-3 py-1 rounded">
-+ Añadir
-</button>
+<button type="button" onClick={()=>agregarHorario()} className="bg-[#F47C2A] text-white px-3 py-1 rounded">
+
+* Añadir
+
+  </button>
 
 </div>
 
@@ -355,6 +366,7 @@ className="px-4 py-2 bg-red-500 text-white rounded-lg"
 eliminar
 </button>
 </div>
+
 ))}
 
 </div>
