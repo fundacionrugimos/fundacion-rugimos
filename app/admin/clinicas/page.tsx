@@ -8,7 +8,7 @@ id:string
 zona:string
 horario_inicio:string
 horario_fim:string
-se_por_dia:number
+cupos_por_dia:number
 ativa:boolean
 usuario:string
 senha:string
@@ -113,7 +113,7 @@ const {error}=await supabase
 zona:form.zona.value,
 horario_inicio:form.horario_inicio.value,
 horario_fim:form.horario_fim.value,
-se_por_dia:Number(form.se_por_dia.value),
+cupos_por_dia:number(form.cupos_por_dia.value),
 usuario:form.usuario.value,
 senha:form.senha.value,
 acepta_gatos:form.acepta_gatos.checked,
@@ -280,7 +280,7 @@ Editar Clínica
 
 <input name="horario_fim" type="time" defaultValue={selectedClinica.horario_fim} className="w-full border p-2"/>
 
-<input name="se_por_dia" type="number" defaultValue={selectedClinica.se_por_dia} className="w-full border p-2"/>
+<input name="cupos_por_dia" type="cupos_por_dia" defaultValue={selectedClinica.cupos_por_dia} className="w-full border p-2"/>
 
 <input name="usuario" defaultValue={selectedClinica.usuario} className="w-full border p-2"/>
 
