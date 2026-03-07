@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
+import QRCode from "qrcode"
 
 type Solicitud = {
 id: string
@@ -60,6 +61,16 @@ const mensaje = encodeURIComponent(whatsappData.mensaje)
 const url = "https://wa.me/591"+telefono+"?text="+mensaje
 
 window.open(url,"_blank")
+
+}
+
+async function generarQR(codigo:string){
+
+const url = `https://fundacion-rugimos.vercel.app/clinica/${codigo}`
+
+const qr = await QRCode.toDataURL(url)
+
+return qr
 
 }
 
@@ -176,21 +187,19 @@ setLoadingId(null)
 return
 }
 
-const { data: horario, error: horarioError } = await supabase
+const { data: horario } = await supabase
 .from("horarios_clinica")
 .select("hora")
 .eq("id", horarioId)
 .single()
 
-if(horarioError || !horario){
+if(!horario){
 alert("Error obteniendo horario")
 setLoadingId(null)
 return
 }
 
 const horaAsignada = horario.hora
-
-// BUSCAR ÚLTIMO CÓDIGO RG
 
 const {data:ultimoRegistro} = await supabase
 .from("registros")
@@ -212,6 +221,8 @@ nuevoNumero = numero + 1
 }
 
 const codigoGenerado = "RG"+nuevoNumero
+
+const qr = await generarQR(codigoGenerado)
 
 await supabase.from("solicitudes")
 .update({codigo:codigoGenerado})
@@ -236,7 +247,8 @@ horario_id:horarioId,
 hora:horaAsignada,
 foto_frente:solicitud.foto_frente,
 foto_lado:solicitud.foto_lado,
-foto_carnet:solicitud.foto_carnet
+foto_carnet:solicitud.foto_carnet,
+qr_code:qr
 
 }])
 
