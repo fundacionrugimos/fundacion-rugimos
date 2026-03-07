@@ -69,6 +69,35 @@ fetchClinicas()
 
 async function toggleClinica(id:number,ativa:boolean){
 
+if(!confirm("¿Seguro que deseas cambiar el estado de esta clínica?")){
+return
+}
+
+try{
+
+const { error } = await supabase
+.from("clinicas")
+.update({ ativa: !ativa })
+.eq("id", id)
+
+if(error){
+console.error("Error actualizando clínica:", error)
+return
+}
+
+// atualiza imediatamente no dashboard
+setClinicas(prev =>
+prev.map(c =>
+c.id === id ? { ...c, ativa: !ativa } : c
+)
+)
+
+}catch(err){
+console.error("Error cambiando estado:",err)
+}
+
+}
+
 await supabase
 .from("clinicas")
 .update({ativa:!ativa})
