@@ -252,6 +252,8 @@ qr_code:qr
 
 }])
 
+const linkQR = "https://fundacion-rugimos.vercel.app/clinica/"+codigoGenerado
+
 const mensaje =
 "🐾 FUNDACIÓN RUGIMOS 🐾\n\n"+
 "Tu solicitud fue APROBADA ✅\n\n"+
@@ -264,6 +266,8 @@ const mensaje =
 "• Ayuno agua: 4 horas\n"+
 "• Llevar manta\n"+
 "• Llegar 15 min antes\n\n"+
+"📲 Presenta tu QR en la clínica:\n"+
+linkQR+"\n\n"+
 "Gracias por apoyar la esterilización responsable 💚"
 
 setWhatsappData({
