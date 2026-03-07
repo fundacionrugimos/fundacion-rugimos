@@ -106,26 +106,26 @@ e.preventDefault()
 if(loading)return
 setLoading(true)
 
-const form=e.target
+const formData = new FormData(e.target)
 
-const zona=form.zona.value
-const horario_inicio=form.horario_inicio.value
-const horario_fim=form.horario_fim.value
-const se_por_dia=Number(form.se_por_dia.value)
-const usuario=form.usuario.value
-const senha=form.senha.value
+const zona = formData.get("zona")
+const horario_inicio = formData.get("horario_inicio")
+const horario_fim = formData.get("horario_fim")
+const se_por_dia = Number(formData.get("se_por_dia"))
+const usuario = formData.get("usuario")
+const senha = formData.get("senha")
 
-const acepta_gatos=form.acepta_gatos.checked
-const acepta_perros=form.acepta_perros.checked
-const acepta_machos=form.acepta_machos.checked
-const acepta_hembras=form.acepta_hembras.checked
-const acepta_calle=form.acepta_calle.checked
-const acepta_propio=form.acepta_propio.checked
-const acepta_perras_calle=form.acepta_perras_calle.checked
+const acepta_gatos = formData.get("acepta_gatos") === "on"
+const acepta_perros = formData.get("acepta_perros") === "on"
+const acepta_machos = formData.get("acepta_machos") === "on"
+const acepta_hembras = formData.get("acepta_hembras") === "on"
+const acepta_calle = formData.get("acepta_calle") === "on"
+const acepta_propio = formData.get("acepta_propio") === "on"
+const acepta_perras_calle = formData.get("acepta_perras_calle") === "on"
 
 if(selectedClinica){
 
-await supabase
+const {error} = await supabase
 .from("clinicas")
 .update({
 zona,
@@ -144,9 +144,16 @@ acepta_perras_calle
 })
 .eq("id",selectedClinica.id)
 
+if(error){
+console.error(error)
+alert("Error actualizando clínica")
+setLoading(false)
+return
+}
+
 }else{
 
-await supabase
+const {error} = await supabase
 .from("clinicas")
 .insert([{
 zona,
@@ -164,6 +171,13 @@ acepta_propio,
 acepta_perras_calle,
 ativa:true
 }])
+
+if(error){
+console.error(error)
+alert("Error creando clínica")
+setLoading(false)
+return
+}
 
 }
 
