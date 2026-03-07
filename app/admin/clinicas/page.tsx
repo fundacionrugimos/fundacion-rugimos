@@ -36,6 +36,9 @@ const [horarios,setHorarios]=useState<Horario[]>([])
 const [isOpen,setIsOpen]=useState(false)
 const [selectedClinica,setSelectedClinica]=useState<Clinica|null>(null)
 
+const [hora,setHora]=useState("")
+const [cupos,setCupos]=useState(10)
+
 async function fetchClinicas(){
 
 const {data,error}=await supabase
@@ -130,6 +133,47 @@ return
 
 fetchClinicas()
 setIsOpen(false)
+
+}
+
+async function agregarHorario(){
+
+if(!selectedClinica)return
+if(!hora)return
+
+const {error}=await supabase
+.from("horarios_clinica")
+.insert({
+hora:hora,
+cupos_maximos:cupos,
+cupos_ocupados:0,
+clinica_id:selectedClinica.id
+})
+
+if(error){
+console.error(error)
+return
+}
+
+fetchHorarios(selectedClinica.id)
+setHora("")
+setCupos(10)
+
+}
+
+async function eliminarHorario(id:string){
+
+const {error}=await supabase
+.from("horarios_clinica")
+.delete()
+.eq("id",id)
+
+if(error){
+console.error(error)
+return
+}
+
+if(selectedClinica) fetchHorarios(selectedClinica.id)
 
 }
 
@@ -253,6 +297,56 @@ Editar Clínica
 <label><input type="checkbox" name="acepta_calle" defaultChecked={selectedClinica.acepta_calle}/> Calle</label>
 <label><input type="checkbox" name="acepta_propio" defaultChecked={selectedClinica.acepta_propio}/> Propio</label>
 <label><input type="checkbox" name="acepta_perras_calle" defaultChecked={selectedClinica.acepta_perras_calle}/> Perras de la calle</label>
+
+</div>
+
+<h3 className="font-bold mt-6">Horarios de cupos</h3>
+
+<div className="flex gap-2">
+
+<input
+type="time"
+value={hora}
+onChange={(e)=>setHora(e.target.value)}
+className="border p-2"
+/>
+
+<input
+type="number"
+value={cupos}
+onChange={(e)=>setCupos(Number(e.target.value))}
+className="border p-2 w-20"
+/>
+
+<button
+type="button"
+onClick={()=>agregarHorario()}
+className="bg-[#F47C2A] text-white px-3 py-1 rounded"
+>
++ Añadir
+</button>
+
+</div>
+
+<div className="mt-3">
+
+{horarios.map(h=>(
+
+<div key={h.id} className="flex justify-between text-sm border-b py-1">
+
+<span>{h.hora} | {h.cupos_maximos - h.cupos_ocupados} cupos</span>
+
+<button
+type="button"
+onClick={()=>eliminarHorario(h.id)}
+className="text-red-600"
+>
+eliminar
+</button>
+
+</div>
+
+))}
 
 </div>
 
