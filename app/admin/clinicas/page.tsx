@@ -296,17 +296,69 @@ onClick={(e)=>e.stopPropagation()}
 
 <form onSubmit={handleSave} className="space-y-4">
 
-<input name="zona" defaultValue={selectedClinica?.zona || ""} className="w-full border p-2"/>
+<label className="text-sm font-semibold">Zona</label>
+<input name="zona" defaultValue={selectedClinica?.zona || ""} className="w-full border p-2 rounded"/>
 
-<input name="horario_inicio" type="time" defaultValue={selectedClinica?.horario_inicio || ""} className="w-full border p-2"/>
+<label className="text-sm font-semibold">Horario inicio</label>
+<input name="horario_inicio" type="time" defaultValue={selectedClinica?.horario_inicio || ""} className="w-full border p-2 rounded"/>
 
-<input name="horario_fim" type="time" defaultValue={selectedClinica?.horario_fim || ""} className="w-full border p-2"/>
+<label className="text-sm font-semibold">Horario fin</label>
+<input name="horario_fim" type="time" defaultValue={selectedClinica?.horario_fim || ""} className="w-full border p-2 rounded"/>
 
-<input name="cupos_por_dia" type="number" defaultValue={selectedClinica?.cupos_por_dia || ""} className="w-full border p-2"/>
+<label className="text-sm font-semibold">Cupos por día</label>
+<input name="cupos_por_dia" type="number" defaultValue={selectedClinica?.cupos_por_dia || ""} className="w-full border p-2 rounded"/>
 
-<input name="usuario" defaultValue={selectedClinica?.usuario || ""} className="w-full border p-2"/>
+<label className="text-sm font-semibold">Usuario clínica</label>
+<input name="usuario" defaultValue={selectedClinica?.usuario || ""} className="w-full border p-2 rounded"/>
 
-<input name="senha" defaultValue={selectedClinica?.senha || ""} className="w-full border p-2"/>
+<label className="text-sm font-semibold">Contraseña</label>
+<input name="senha" defaultValue={selectedClinica?.senha || ""} className="w-full border p-2 rounded"/>
+
+<h3 className="font-bold mt-4">Restricciones de animales</h3>
+
+<div className="grid grid-cols-2 gap-3">
+
+<label><input type="checkbox" name="acepta_gatos" defaultChecked={selectedClinica?.acepta_gatos}/> Gatos</label>
+<label><input type="checkbox" name="acepta_perros" defaultChecked={selectedClinica?.acepta_perros}/> Perros</label>
+<label><input type="checkbox" name="acepta_machos" defaultChecked={selectedClinica?.acepta_machos}/> Machos</label>
+<label><input type="checkbox" name="acepta_hembras" defaultChecked={selectedClinica?.acepta_hembras}/> Hembras</label>
+<label><input type="checkbox" name="acepta_calle" defaultChecked={selectedClinica?.acepta_calle}/> Calle</label>
+<label><input type="checkbox" name="acepta_propio" defaultChecked={selectedClinica?.acepta_propio}/> Propio</label>
+<label><input type="checkbox" name="acepta_perras_calle" defaultChecked={selectedClinica?.acepta_perras_calle}/> Perras de la calle</label>
+
+</div>
+
+<h3 className="font-bold mt-6">Horarios de cupos</h3>
+
+<div className="flex gap-2">
+
+<input type="time" value={hora} onChange={(e)=>setHora(e.target.value)} className="border p-2 rounded"/>
+
+<input type="number" value={cupos} onChange={(e)=>setCupos(Number(e.target.value))} className="border p-2 w-24 rounded"/>
+
+<button type="button" onClick={()=>agregarHorario()} className="bg-[#F47C2A] text-white px-3 py-1 rounded">
++ Añadir
+</button>
+
+</div>
+
+<div className="mt-3">
+
+{horarios.map(h=>(
+
+<div key={h.id} className="flex justify-between text-sm border-b py-1">
+
+<span>{h.hora} | {h.cupos_maximos - h.cupos_ocupados} cupos</span>
+
+<button type="button" onClick={()=>eliminarHorario(h.id)} className="text-red-600">
+eliminar
+</button>
+
+</div>
+
+))}
+
+</div>
 
 <div className="flex justify-end gap-3 pt-4">
 
