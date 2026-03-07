@@ -102,13 +102,9 @@ async function handleSave(e:any){
 
 e.preventDefault()
 
-if(!selectedClinica) return
-
 const form = e.target
 
-const {error}=await supabase
-.from("clinicas")
-.update({
+const data = {
 zona:form.zona.value,
 horario_inicio:form.horario_inicio.value,
 horario_fim:form.horario_fim.value,
@@ -122,17 +118,41 @@ acepta_hembras: !!form.acepta_hembras?.checked,
 acepta_calle: !!form.acepta_calle?.checked,
 acepta_propio: !!form.acepta_propio?.checked,
 acepta_perras_calle: !!form.acepta_perras_calle?.checked
-})
+}
+
+let error
+
+if(selectedClinica){
+
+const res = await supabase
+.from("clinicas")
+.update(data)
 .eq("id",selectedClinica.id)
+
+error = res.error
+
+}else{
+
+const res = await supabase
+.from("clinicas")
+.insert([{
+...data,
+ativa:true
+}])
+
+error = res.error
+
+}
 
 if(error){
 console.error(error)
-alert("Error actualizando clínica")
+alert("Error guardando clínica")
 return
 }
 
 await fetchClinicas()
 setIsOpen(false)
+setSelectedClinica(null)
 
 }
 
@@ -191,7 +211,7 @@ Gestión de Clínicas 🏥
 onClick={()=>{setSelectedClinica(null);setIsOpen(true)}}
 className="bg-[#F47C2A] text-white px-6 py-2 rounded-xl"
 >
-* Nueva Clínica
++ Nueva Clínica
 </button>
 
 </div>
@@ -258,7 +278,7 @@ className="px-4 py-2 bg-red-500 text-white rounded-lg"
 
 </div>
 
-{isOpen && selectedClinica && (
+{isOpen && (
 
 <div
 className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6"
@@ -271,84 +291,22 @@ onClick={(e)=>e.stopPropagation()}
 >
 
 <h2 className="text-2xl font-bold mb-6 text-[#026A6A]">
-Editar Clínica
+{selectedClinica ? "Editar Clínica" : "Nueva Clínica"}
 </h2>
 
 <form onSubmit={handleSave} className="space-y-4">
 
-<input name="zona" defaultValue={selectedClinica.zona} className="w-full border p-2"/>
+<input name="zona" defaultValue={selectedClinica?.zona || ""} className="w-full border p-2"/>
 
-<input name="horario_inicio" type="time" defaultValue={selectedClinica.horario_inicio} className="w-full border p-2"/>
+<input name="horario_inicio" type="time" defaultValue={selectedClinica?.horario_inicio || ""} className="w-full border p-2"/>
 
-<input name="horario_fim" type="time" defaultValue={selectedClinica.horario_fim} className="w-full border p-2"/>
+<input name="horario_fim" type="time" defaultValue={selectedClinica?.horario_fim || ""} className="w-full border p-2"/>
 
-<input name="cupos_por_dia" type="number" defaultValue={selectedClinica.cupos_por_dia} className="w-full border p-2"/>
+<input name="cupos_por_dia" type="number" defaultValue={selectedClinica?.cupos_por_dia || ""} className="w-full border p-2"/>
 
-<input name="usuario" defaultValue={selectedClinica.usuario} className="w-full border p-2"/>
+<input name="usuario" defaultValue={selectedClinica?.usuario || ""} className="w-full border p-2"/>
 
-<input name="senha" defaultValue={selectedClinica.senha} className="w-full border p-2"/>
-
-<div className="grid grid-cols-2 gap-3">
-
-<label><input type="checkbox" name="acepta_gatos" defaultChecked={selectedClinica.acepta_gatos}/> Gatos</label>
-<label><input type="checkbox" name="acepta_perros" defaultChecked={selectedClinica.acepta_perros}/> Perros</label>
-<label><input type="checkbox" name="acepta_machos" defaultChecked={selectedClinica.acepta_machos}/> Machos</label>
-<label><input type="checkbox" name="acepta_hembras" defaultChecked={selectedClinica.acepta_hembras}/> Hembras</label>
-<label><input type="checkbox" name="acepta_calle" defaultChecked={selectedClinica.acepta_calle}/> Calle</label>
-<label><input type="checkbox" name="acepta_propio" defaultChecked={selectedClinica.acepta_propio}/> Propio</label>
-<label><input type="checkbox" name="acepta_perras_calle" defaultChecked={selectedClinica.acepta_perras_calle}/> Perras de la calle</label>
-
-</div>
-
-<h3 className="font-bold mt-6">Horarios de cupos</h3>
-
-<div className="flex gap-2">
-
-<input
-type="time"
-value={hora}
-onChange={(e)=>setHora(e.target.value)}
-className="border p-2"
-/>
-
-<input
-type="number"
-value={cupos}
-onChange={(e)=>setCupos(Number(e.target.value))}
-className="border p-2 w-20"
-/>
-
-<button
-type="button"
-onClick={()=>agregarHorario()}
-className="bg-[#F47C2A] text-white px-3 py-1 rounded"
->
-+ Añadir
-</button>
-
-</div>
-
-<div className="mt-3">
-
-{horarios.map(h=>(
-
-<div key={h.id} className="flex justify-between text-sm border-b py-1">
-
-<span>{h.hora} | {h.cupos_maximos - h.cupos_ocupados} cupos</span>
-
-<button
-type="button"
-onClick={()=>eliminarHorario(h.id)}
-className="text-red-600"
->
-eliminar
-</button>
-
-</div>
-
-))}
-
-</div>
+<input name="senha" defaultValue={selectedClinica?.senha || ""} className="w-full border p-2"/>
 
 <div className="flex justify-end gap-3 pt-4">
 
