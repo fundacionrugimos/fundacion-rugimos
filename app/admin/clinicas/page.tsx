@@ -99,160 +99,11 @@ c.id===id ? {...c,ativa:!ativa}:c
 
 }
 
-async function handleSave(e:any){
-
-e.preventDefault()
-
-if(loading)return
-setLoading(true)
-
-const formData = new FormData(e.target)
-
-const zona = formData.get("zona")
-const horario_inicio = formData.get("horario_inicio")
-const horario_fim = formData.get("horario_fim")
-const se_por_dia = Number(formData.get("se_por_dia"))
-const usuario = formData.get("usuario")
-const senha = formData.get("senha")
-
-const acepta_gatos = formData.get("acepta_gatos") === "on"
-const acepta_perros = formData.get("acepta_perros") === "on"
-const acepta_machos = formData.get("acepta_machos") === "on"
-const acepta_hembras = formData.get("acepta_hembras") === "on"
-const acepta_calle = formData.get("acepta_calle") === "on"
-const acepta_propio = formData.get("acepta_propio") === "on"
-const acepta_perras_calle = formData.get("acepta_perras_calle") === "on"
-
-if(selectedClinica){
-
-const {error} = await supabase
-.from("clinicas")
-.update({
-zona,
-horario_inicio,
-horario_fim,
-se_por_dia,
-usuario,
-senha,
-acepta_gatos,
-acepta_perros,
-acepta_machos,
-acepta_hembras,
-acepta_calle,
-acepta_propio,
-acepta_perras_calle
-})
-.eq("id",selectedClinica.id)
-
-if(error){
-console.error(error)
-alert("Error actualizando clínica")
-setLoading(false)
-return
-}
-
-}else{
-
-const {error} = await supabase
-.from("clinicas")
-.insert([{
-zona,
-horario_inicio,
-horario_fim,
-se_por_dia,
-usuario,
-senha,
-acepta_gatos,
-acepta_perros,
-acepta_machos,
-acepta_hembras,
-acepta_calle,
-acepta_propio,
-acepta_perras_calle,
-ativa:true
-}])
-
-if(error){
-console.error(error)
-alert("Error creando clínica")
-setLoading(false)
-return
-}
-
-}
-
-await fetchClinicas()
-
-setLoading(false)
-setIsOpen(false)
-setSelectedClinica(null)
-
-}
-
-async function agregarHorario(){
-
-if(!selectedClinica){
-alert("Seleccione una clínica")
-return
-}
-
-if(!hora){
-alert("Seleccione una hora")
-return
-}
-
-const existe=horarios.find(h=>h.hora===hora)
-
-if(existe){
-alert("Este horario ya existe")
-return
-}
-
-const {error}=await supabase
-.from("horarios_clinica")
-.insert([{
-hora:hora,
-cupos_maximos:Number(cupos),
-cupos_ocupados:0,
-clinica_id:selectedClinica.id
-}])
-
-if(error){
-console.error("Error insertando horario:",error)
-alert("Error creando horario")
-return
-}
-
-setHora("")
-setCupos(10)
-
-await fetchHorarios(selectedClinica.id)
-
-}
-
-async function eliminarHorario(id:string){
-
-if(!selectedClinica)return
-
-const {error}=await supabase
-.from("horarios_clinica")
-.delete()
-.eq("id",id)
-
-if(error){
-console.error(error)
-return
-}
-
-await fetchHorarios(selectedClinica.id)
-
-}
-
 return(
 
 <main className="min-h-screen bg-[#026A6A] p-10">
 
-<div className="flex justify-between itemAs-center mb-10">
+<div className="flex justify-between items-center mb-10">
 
 <h1 className="text-3xl font-bold text-white">
 Gestión de Clínicas 🏥
@@ -329,7 +180,47 @@ className="px-4 py-2 bg-red-500 text-white rounded-lg"
 
 </div>
 
+{/* MODAL */}
+
+{isOpen && (
+
+<div
+className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6 overflow-y-auto"
+onClick={()=>setIsOpen(false)}
+>
+
+<div
+className="bg-white rounded-2xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+onClick={(e)=>e.stopPropagation()}
+>
+
+<h2 className="text-2xl font-bold mb-6 text-[#026A6A]">
+Editar Clínica
+</h2>
+
+<p className="text-gray-600">
+Panel de edición abierto correctamente.
+</p>
+
+<div className="flex justify-end pt-6">
+
+<button
+onClick={()=>setIsOpen(false)}
+className="bg-gray-300 px-4 py-2 rounded"
+>
+Cerrar
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+)}
+
 </main>
 
 )
+
 }
