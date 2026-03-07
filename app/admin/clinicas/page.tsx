@@ -22,10 +22,11 @@ acepta_perras_calle:boolean
 }
 
 interface Horario{
-id:number
+id:string
 hora:string
-cupos_disponibles:number
-clinica_id:number
+cupos_maximos:number
+cupos_ocupados:number
+clinica_id:string
 }
 
 export default function ClinicasPage(){
@@ -197,7 +198,8 @@ const {error}=await supabase
 .from("horarios_clinica")
 .insert([{
 hora:hora,
-cupos_disponibles:Number(cupos),
+cupos_maximos:Number(cupos),
+cupos_ocupados:0,
 clinica_id:selectedClinica.id
 }])
 
@@ -214,7 +216,7 @@ await fetchHorarios(selectedClinica.id)
 
 }
 
-async function eliminarHorario(id:number){
+async function eliminarHorario(id:string){
 
 if(!selectedClinica)return
 
@@ -368,7 +370,7 @@ className="px-4 py-2 bg-red-500 text-white rounded-lg"
 {horarios.map(h=>(
 
 <div key={h.id} className="flex justify-between text-sm border-b py-1">
-<span>{h.hora} | {h.cupos_disponibles} cupos</span>
+<span>{h.hora} | {h.cupos_maximos - h.cupos_ocupados} cupos</span>
 <button type="button" onClick={()=>eliminarHorario(h.id)} className="text-red-600">
 eliminar
 </button>
