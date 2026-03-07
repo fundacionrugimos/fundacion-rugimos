@@ -12,7 +12,6 @@ se_por_dia:number
 ativa:boolean
 usuario:string
 senha:string
-
 acepta_gatos:boolean
 acepta_perros:boolean
 acepta_machos:boolean
@@ -42,7 +41,7 @@ const [cupos,setCupos]=useState(10)
 
 async function fetchClinicas(){
 
-const {data,error}=await supabase
+const {data}=await supabase
 .from("clinicas")
 .select("*")
 .order("zona",{ascending:true})
@@ -75,35 +74,25 @@ return
 
 try{
 
-const { error } = await supabase
-.from("clinicas")
-.update({ ativa: !ativa })
-.eq("id", id)
-
-if(error){
-console.error("Error actualizando clínica:", error)
-return
-}
-
-// atualiza imediatamente no dashboard
-setClinicas(prev =>
-prev.map(c =>
-c.id === id ? { ...c, ativa: !ativa } : c
-)
-)
-
-}catch(err){
-console.error("Error cambiando estado:",err)
-}
-
-}
-
-await supabase
+const {error}=await supabase
 .from("clinicas")
 .update({ativa:!ativa})
 .eq("id",id)
 
-fetchClinicas()
+if(error){
+console.error(error)
+return
+}
+
+setClinicas(prev =>
+prev.map(c =>
+c.id===id ? {...c,ativa:!ativa}:c
+)
+)
+
+}catch(err){
+console.error(err)
+}
 
 }
 
