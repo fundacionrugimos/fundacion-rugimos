@@ -303,9 +303,9 @@ className="px-4 py-2 bg-red-500 text-white rounded-lg"
 
 {isOpen && (
 
-<div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+<div className="fixed inset-0 bg-black/40 flex items-center justify-center p-6 overflow-y-auto">
 
-<div className="bg-white rounded-2xl p-8 w-full max-w-lg">
+<div className="bg-white rounded-2xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto">
 
 <h2 className="text-2xl font-bold mb-6 text-[#026A6A]">
 {selectedClinica?"Editar Clínica":"Nueva Clínica"}
