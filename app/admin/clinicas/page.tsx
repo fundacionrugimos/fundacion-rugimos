@@ -24,7 +24,7 @@ acepta_perras_calle:boolean
 interface Horario{
 id:number
 hora:string
-cupos:number
+cupos_disponibles:number
 clinica_id:number
 }
 
@@ -177,7 +177,7 @@ setSelectedClinica(null)
 async function agregarHorario(){
 
 if(!selectedClinica){
-alert("Seleccione una clínica primero")
+alert("Seleccione una clínica")
 return
 }
 
@@ -186,11 +186,18 @@ alert("Seleccione una hora")
 return
 }
 
+const existe=horarios.find(h=>h.hora===hora)
+
+if(existe){
+alert("Este horario ya existe")
+return
+}
+
 const {error}=await supabase
 .from("horarios_clinica")
 .insert([{
 hora:hora,
-cupos:Number(cupos),
+cupos_disponibles:Number(cupos),
 clinica_id:selectedClinica.id
 }])
 
@@ -217,7 +224,7 @@ const {error}=await supabase
 .eq("id",id)
 
 if(error){
-console.error("Error eliminando horario:",error)
+console.error(error)
 return
 }
 
@@ -361,7 +368,7 @@ className="px-4 py-2 bg-red-500 text-white rounded-lg"
 {horarios.map(h=>(
 
 <div key={h.id} className="flex justify-between text-sm border-b py-1">
-<span>{h.hora} | {h.cupos} cupos</span>
+<span>{h.hora} | {h.cupos_disponibles} cupos</span>
 <button type="button" onClick={()=>eliminarHorario(h.id)} className="text-red-600">
 eliminar
 </button>
