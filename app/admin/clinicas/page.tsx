@@ -131,7 +131,7 @@ alert("Error actualizando clínica")
 return
 }
 
-fetchClinicas()
+await fetchClinicas()
 setIsOpen(false)
 
 }
@@ -143,19 +143,19 @@ if(!hora)return
 
 const {error}=await supabase
 .from("horarios_clinica")
-.insert({
+.insert([{
 hora:hora,
 cupos_maximos:cupos,
 cupos_ocupados:0,
 clinica_id:selectedClinica.id
-})
+}])
 
 if(error){
 console.error(error)
 return
 }
 
-fetchHorarios(selectedClinica.id)
+await fetchHorarios(selectedClinica.id)
 setHora("")
 setCupos(10)
 
@@ -173,7 +173,7 @@ console.error(error)
 return
 }
 
-if(selectedClinica) fetchHorarios(selectedClinica.id)
+if(selectedClinica) await fetchHorarios(selectedClinica.id)
 
 }
 
