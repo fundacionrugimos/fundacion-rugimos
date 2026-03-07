@@ -115,13 +115,13 @@ horario_fim:form.horario_fim.value,
 cupos_por_dia:Number(form.cupos_por_dia.value),
 usuario:form.usuario.value,
 senha:form.senha.value,
-acepta_gatos:form.acepta_gatos.checked,
-acepta_perros:form.acepta_perros.checked,
-acepta_machos:form.acepta_machos.checked,
-acepta_hembras:form.acepta_hembras.checked,
-acepta_calle:form.acepta_calle.checked,
-acepta_propio:form.acepta_propio.checked,
-acepta_perras_calle:form.acepta_perras_calle.checked
+acepta_gatos: !!form.acepta_gatos?.checked,
+acepta_perros: !!form.acepta_perros?.checked,
+acepta_machos: !!form.acepta_machos?.checked,
+acepta_hembras: !!form.acepta_hembras?.checked,
+acepta_calle: !!form.acepta_calle?.checked,
+acepta_propio: !!form.acepta_propio?.checked,
+acepta_perras_calle: !!form.acepta_perras_calle?.checked
 })
 .eq("id",selectedClinica.id)
 
