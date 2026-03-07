@@ -18,29 +18,29 @@ router.push("/clinica/"+codigo)
 
 return(
 
-<div className="min-h-screen flex flex-col items-center justify-center bg-[#026A6A]">
+<div className="min-h-screen flex flex-col items-center justify-center bg-[#026A6A] text-center px-6">
 
 <img 
-src="/logo-rugimos.png" 
-className="w-40 mb-8"
+src="/rugimos-logo.png"
+className="w-44 mb-10"
 />
 
-<h1 className="text-white text-3xl font-bold mb-8">
+<h1 className="text-white text-4xl font-bold mb-10">
 Buscar Paciente
 </h1>
 
-<div className="flex w-full max-w-xl">
+<div className="flex w-full max-w-2xl shadow-xl">
 
 <input
 value={codigo}
 onChange={(e)=>setCodigo(e.target.value)}
 placeholder="Ingresar código RG"
-className="flex-1 p-4 rounded-l-xl border-none outline-none"
+className="flex-1 p-5 rounded-l-full text-lg outline-none"
 />
 
 <button
 onClick={buscar}
-className="bg-[#F47C2A] text-white px-6 rounded-r-xl font-semibold"
+className="bg-[#F47C2A] text-white px-10 text-lg font-semibold rounded-r-full hover:opacity-90"
 >
 Buscar
 </button>
