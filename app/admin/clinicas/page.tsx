@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
-interface Clinica {
+interface Clinica{
 id:number
 zona:string
 horario_inicio:string
@@ -41,10 +41,15 @@ const [cupos,setCupos]=useState(10)
 
 async function fetchClinicas(){
 
-const {data}=await supabase
+const {data,error}=await supabase
 .from("clinicas")
 .select("*")
 .order("zona",{ascending:true})
+
+if(error){
+console.error(error)
+return
+}
 
 if(data)setClinicas(data)
 
@@ -52,11 +57,16 @@ if(data)setClinicas(data)
 
 async function fetchHorarios(clinicaId:number){
 
-const {data}=await supabase
+const {data,error}=await supabase
 .from("horarios_clinica")
 .select("*")
 .eq("clinica_id",clinicaId)
 .order("hora")
+
+if(error){
+console.error(error)
+return
+}
 
 if(data)setHorarios(data)
 
@@ -71,8 +81,6 @@ async function toggleClinica(id:number,ativa:boolean){
 if(!confirm("¿Seguro que deseas cambiar el estado de esta clínica?")){
 return
 }
-
-try{
 
 const {error}=await supabase
 .from("clinicas")
@@ -89,10 +97,6 @@ prev.map(c =>
 c.id===id ? {...c,ativa:!ativa}:c
 )
 )
-
-}catch(err){
-console.error(err)
-}
 
 }
 
@@ -112,13 +116,13 @@ const se_por_dia=Number(form.se_por_dia.value)
 const usuario=form.usuario.value
 const senha=form.senha.value
 
-const acepta_gatos=form.querySelector('[name="acepta_gatos"]').checked
-const acepta_perros=form.querySelector('[name="acepta_perros"]').checked
-const acepta_machos=form.querySelector('[name="acepta_machos"]').checked
-const acepta_hembras=form.querySelector('[name="acepta_hembras"]').checked
-const acepta_calle=form.querySelector('[name="acepta_calle"]').checked
-const acepta_propio=form.querySelector('[name="acepta_propio"]').checked
-const acepta_perras_calle=form.querySelector('[name="acepta_perras_calle"]').checked
+const acepta_gatos=form.acepta_gatos.checked
+const acepta_perros=form.acepta_perros.checked
+const acepta_machos=form.acepta_machos.checked
+const acepta_hembras=form.acepta_hembras.checked
+const acepta_calle=form.acepta_calle.checked
+const acepta_propio=form.acepta_propio.checked
+const acepta_perras_calle=form.acepta_perras_calle.checked
 
 if(selectedClinica){
 
@@ -164,11 +168,11 @@ ativa:true
 
 }
 
+await fetchClinicas()
+
 setLoading(false)
 setIsOpen(false)
 setSelectedClinica(null)
-
-fetchClinicas()
 
 }
 
@@ -176,7 +180,7 @@ async function agregarHorario(){
 
 if(!hora||!selectedClinica)return
 
-await supabase
+const {error}=await supabase
 .from("horarios_clinica")
 .insert([{
 hora,
@@ -184,18 +188,31 @@ cupos,
 clinica_id:selectedClinica.id
 }])
 
-fetchHorarios(selectedClinica.id)
+if(error){
+console.error(error)
+return
+}
+
+setHora("")
+await fetchHorarios(selectedClinica.id)
 
 }
 
 async function eliminarHorario(id:number){
 
-await supabase
+if(!selectedClinica)return
+
+const {error}=await supabase
 .from("horarios_clinica")
 .delete()
 .eq("id",id)
 
-if(selectedClinica)fetchHorarios(selectedClinica.id)
+if(error){
+console.error(error)
+return
+}
+
+await fetchHorarios(selectedClinica.id)
 
 }
 
@@ -291,7 +308,7 @@ className="px-4 py-2 bg-red-500 text-white rounded-lg"
 <div className="bg-white rounded-2xl p-8 w-full max-w-lg">
 
 <h2 className="text-2xl font-bold mb-6 text-[#026A6A]">
-Editar Clínica
+{selectedClinica?"Editar Clínica":"Nueva Clínica"}
 </h2>
 
 <form onSubmit={handleSave} className="space-y-4">
