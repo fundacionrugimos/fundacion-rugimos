@@ -99,6 +99,82 @@ c.id===id ? {...c,ativa:!ativa}:c
 
 }
 
+async function handleSave(e:any){
+
+e.preventDefault()
+
+if(!selectedClinica) return
+
+const form = e.target
+
+const {error}=await supabase
+.from("clinicas")
+.update({
+zona:form.zona.value,
+horario_inicio:form.horario_inicio.value,
+horario_fim:form.horario_fim.value,
+se_por_dia:Number(form.se_por_dia.value),
+usuario:form.usuario.value,
+senha:form.senha.value,
+acepta_gatos:form.acepta_gatos.checked,
+acepta_perros:form.acepta_perros.checked,
+acepta_machos:form.acepta_machos.checked,
+acepta_hembras:form.acepta_hembras.checked,
+acepta_calle:form.acepta_calle.checked,
+acepta_propio:form.acepta_propio.checked,
+acepta_perras_calle:form.acepta_perras_calle.checked
+})
+.eq("id",selectedClinica.id)
+
+if(error){
+console.error(error)
+alert("Error actualizando clínica")
+return
+}
+
+fetchClinicas()
+setIsOpen(false)
+
+}
+
+async function agregarHorario(){
+
+if(!selectedClinica)return
+
+const {error}=await supabase
+.from("horarios_clinica")
+.insert({
+hora,
+cupos_maximos:cupos,
+cupos_ocupados:0,
+clinica_id:selectedClinica.id
+})
+
+if(error){
+console.error(error)
+return
+}
+
+fetchHorarios(selectedClinica.id)
+
+}
+
+async function eliminarHorario(id:string){
+
+const {error}=await supabase
+.from("horarios_clinica")
+.delete()
+.eq("id",id)
+
+if(error){
+console.error(error)
+return
+}
+
+if(selectedClinica) fetchHorarios(selectedClinica.id)
+
+}
+
 return(
 
 <main className="min-h-screen bg-[#026A6A] p-10">
@@ -180,12 +256,10 @@ className="px-4 py-2 bg-red-500 text-white rounded-lg"
 
 </div>
 
-{/* MODAL */}
-
-{isOpen && (
+{isOpen && selectedClinica && (
 
 <div
-className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6 overflow-y-auto"
+className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6"
 onClick={()=>setIsOpen(false)}
 >
 
@@ -198,20 +272,45 @@ onClick={(e)=>e.stopPropagation()}
 Editar Clínica
 </h2>
 
-<p className="text-gray-600">
-Panel de edición abierto correctamente.
-</p>
+<form onSubmit={handleSave} className="space-y-4">
 
-<div className="flex justify-end pt-6">
+<input name="zona" defaultValue={selectedClinica.zona} className="w-full border p-2"/>
 
-<button
-onClick={()=>setIsOpen(false)}
-className="bg-gray-300 px-4 py-2 rounded"
->
-Cerrar
+<input name="horario_inicio" type="time" defaultValue={selectedClinica.horario_inicio} className="w-full border p-2"/>
+
+<input name="horario_fim" type="time" defaultValue={selectedClinica.horario_fim} className="w-full border p-2"/>
+
+<input name="se_por_dia" type="number" defaultValue={selectedClinica.se_por_dia} className="w-full border p-2"/>
+
+<input name="usuario" defaultValue={selectedClinica.usuario} className="w-full border p-2"/>
+
+<input name="senha" defaultValue={selectedClinica.senha} className="w-full border p-2"/>
+
+<div className="grid grid-cols-2 gap-3">
+
+<label><input type="checkbox" name="acepta_gatos" defaultChecked={selectedClinica.acepta_gatos}/> Gatos</label>
+<label><input type="checkbox" name="acepta_perros" defaultChecked={selectedClinica.acepta_perros}/> Perros</label>
+<label><input type="checkbox" name="acepta_machos" defaultChecked={selectedClinica.acepta_machos}/> Machos</label>
+<label><input type="checkbox" name="acepta_hembras" defaultChecked={selectedClinica.acepta_hembras}/> Hembras</label>
+<label><input type="checkbox" name="acepta_calle" defaultChecked={selectedClinica.acepta_calle}/> Calle</label>
+<label><input type="checkbox" name="acepta_propio" defaultChecked={selectedClinica.acepta_propio}/> Propio</label>
+<label><input type="checkbox" name="acepta_perras_calle" defaultChecked={selectedClinica.acepta_perras_calle}/> Perras de la calle</label>
+
+</div>
+
+<div className="flex justify-end gap-3 pt-4">
+
+<button type="button" onClick={()=>setIsOpen(false)} className="bg-gray-300 px-4 py-2 rounded">
+Cancelar
+</button>
+
+<button type="submit" className="bg-[#F47C2A] text-white px-4 py-2 rounded">
+Guardar
 </button>
 
 </div>
+
+</form>
 
 </div>
 
