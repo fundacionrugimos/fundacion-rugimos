@@ -35,10 +35,6 @@ const [clinicas,setClinicas]=useState<Clinica[]>([])
 const [horarios,setHorarios]=useState<Horario[]>([])
 const [isOpen,setIsOpen]=useState(false)
 const [selectedClinica,setSelectedClinica]=useState<Clinica|null>(null)
-const [loading,setLoading]=useState(false)
-
-const [hora,setHora]=useState("")
-const [cupos,setCupos]=useState(10)
 
 async function fetchClinicas(){
 
@@ -113,7 +109,7 @@ const {error}=await supabase
 zona:form.zona.value,
 horario_inicio:form.horario_inicio.value,
 horario_fim:form.horario_fim.value,
-cupos_por_dia:number(form.cupos_por_dia.value),
+cupos_por_dia:Number(form.cupos_por_dia.value),
 usuario:form.usuario.value,
 senha:form.senha.value,
 acepta_gatos:form.acepta_gatos.checked,
@@ -134,44 +130,6 @@ return
 
 fetchClinicas()
 setIsOpen(false)
-
-}
-
-async function agregarHorario(){
-
-if(!selectedClinica)return
-
-const {error}=await supabase
-.from("horarios_clinica")
-.insert({
-hora,
-cupos_maximos:cupos,
-cupos_ocupados:0,
-clinica_id:selectedClinica.id
-})
-
-if(error){
-console.error(error)
-return
-}
-
-fetchHorarios(selectedClinica.id)
-
-}
-
-async function eliminarHorario(id:string){
-
-const {error}=await supabase
-.from("horarios_clinica")
-.delete()
-.eq("id",id)
-
-if(error){
-console.error(error)
-return
-}
-
-if(selectedClinica) fetchHorarios(selectedClinica.id)
 
 }
 
@@ -207,7 +165,7 @@ Zona: {clinica.zona}
 </p>
 
 <p>Horario: {clinica.horario_inicio} - {clinica.horario_fim}</p>
-<p>Cupos por día: {clinica.se_por_dia}</p>
+<p>Cupos por día: {clinica.cupos_por_dia}</p>
 <p>Usuario: {clinica.usuario}</p>
 
 <div className="text-sm mt-2">
@@ -280,7 +238,7 @@ Editar Clínica
 
 <input name="horario_fim" type="time" defaultValue={selectedClinica.horario_fim} className="w-full border p-2"/>
 
-<input name="cupos_por_dia" type="cupos_por_dia" defaultValue={selectedClinica.cupos_por_dia} className="w-full border p-2"/>
+<input name="cupos_por_dia" type="number" defaultValue={selectedClinica.cupos_por_dia} className="w-full border p-2"/>
 
 <input name="usuario" defaultValue={selectedClinica.usuario} className="w-full border p-2"/>
 
