@@ -28,7 +28,7 @@ return
 
 localStorage.setItem("clinica_id",data.id)
 
-router.push("/clinica/login")
+router.push("/clinica/dashboard")
 
 }
 
