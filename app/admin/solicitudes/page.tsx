@@ -56,9 +56,7 @@ const enviarWhatsapp = ()=>{
 if(!whatsappData) return
 
 const telefono = whatsappData.telefono.replace(/\D/g,"")
-
 const mensaje = encodeURIComponent(whatsappData.mensaje)
-
 const url = "https://wa.me/591"+telefono+"?text="+mensaje
 
 window.open(url,"_blank")
@@ -192,8 +190,28 @@ return
 
 const horaAsignada = horario.hora
 
-const codigoGenerado =
-"RUG-"+new Date().getFullYear()+"-"+Math.floor(100000+Math.random()*900000)
+// BUSCAR ÚLTIMO CÓDIGO RG
+
+const {data:ultimoRegistro} = await supabase
+.from("registros")
+.select("codigo")
+.order("created_at",{ascending:false})
+.limit(1)
+.single()
+
+let nuevoNumero = 1
+
+if(ultimoRegistro?.codigo){
+
+const numero = parseInt(ultimoRegistro.codigo.replace("RG",""))
+
+if(!isNaN(numero)){
+nuevoNumero = numero + 1
+}
+
+}
+
+const codigoGenerado = "RG"+nuevoNumero
 
 await supabase.from("solicitudes")
 .update({codigo:codigoGenerado})
