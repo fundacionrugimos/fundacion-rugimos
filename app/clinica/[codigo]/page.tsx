@@ -19,14 +19,12 @@ const [noEncontrado,setNoEncontrado] = useState(false)
 
 const [fotoModal,setFotoModal] = useState<string | null>(null)
 
-
-/* PROTECCIÓN LOGIN */
-
 useEffect(()=>{
 
 const clinica = localStorage.getItem("clinica_id")
+const loginTime = localStorage.getItem("clinica_login_time")
 
-if(!clinica){
+if(!clinica || !loginTime){
 
 sessionStorage.setItem("paciente_redirect",codigoLimpo)
 router.push("/clinica/login")
@@ -34,10 +32,21 @@ return
 
 }
 
+const ahora = Date.now()
+const cincoMin = 5 * 60 * 1000
+
+if(ahora - Number(loginTime) > cincoMin){
+
+localStorage.removeItem("clinica_id")
+localStorage.removeItem("clinica_zona")
+localStorage.removeItem("clinica_login_time")
+
+sessionStorage.setItem("paciente_redirect",codigoLimpo)
+router.push("/clinica/login")
+
+}
+
 },[codigoLimpo,router])
-
-
-/* CARGAR PACIENTE */
 
 async function cargar(){
 
@@ -51,6 +60,7 @@ const { data,error } = await supabase
 .maybeSingle()
 
 if(error){
+
 console.log(error)
 setCargando(false)
 return
@@ -68,20 +78,22 @@ setCargando(false)
 }
 
 useEffect(()=>{
-if(codigo){
+if(codigoLimpo){
 cargar()
 }
-},[codigo])
-
-
-/* ESTADO FINAL */
+},[codigoLimpo])
 
 const finalizado =
 registro?.estado_clinica === "Apto" ||
 registro?.estado_clinica === "Rechazado"
 
+function volverClinica(){
 
-/* MARCAR APTO */
+setTimeout(()=>{
+router.push("/clinica")
+},1200)
+
+}
 
 async function marcarApto(){
 
@@ -102,12 +114,11 @@ return
 
 alert("Paciente marcado como APTO")
 
-router.push("/clinica")
+localStorage.setItem("rugimos_update_resumen", Date.now().toString())
+
+volverClinica()
 
 }
-
-
-/* MARCAR NO APTO */
 
 async function marcarNoApto(){
 
@@ -135,12 +146,9 @@ return
 
 alert("Paciente marcado como NO APTO")
 
-router.push("/clinica")
+volverClinica()
 
 }
-
-
-/* REPROGRAMAR */
 
 async function reprogramar(){
 
@@ -169,12 +177,9 @@ return
 
 alert("Cirugía reprogramada")
 
-router.push("/clinica")
+volverClinica()
 
 }
-
-
-/* CORES DO ESTADO */
 
 function colorEstado(){
 
@@ -188,12 +193,11 @@ if(registro.estado_clinica === "Rechazado") return "bg-red-600"
 
 if(registro.estado_clinica === "Reprogramado") return "bg-orange-500"
 
+if(registro.estado_clinica === "No Show") return "bg-gray-700"
+
 return "bg-gray-400"
 
 }
-
-
-/* CARGANDO */
 
 if(cargando){
 
@@ -204,9 +208,6 @@ Cargando paciente...
 )
 
 }
-
-
-/* CODIGO NO ENCONTRADO */
 
 if(noEncontrado){
 
@@ -228,7 +229,6 @@ Volver
 )
 
 }
-
 
 return(
 
@@ -258,6 +258,8 @@ Paciente {registro.codigo}
 Datos del Responsable
 </h2>
 
+<div className="grid grid-cols-2 gap-4 text-gray-700">
+
 <p><b>Nombre:</b> {registro.nombre_responsable}</p>
 <p><b>Teléfono:</b> {registro.telefono}</p>
 <p><b>CI:</b> {registro.ci}</p>
@@ -265,6 +267,7 @@ Datos del Responsable
 
 </div>
 
+</div>
 
 <div className="bg-white rounded-2xl shadow-xl p-6">
 
@@ -272,14 +275,18 @@ Datos del Responsable
 Datos del Animal
 </h2>
 
+<div className="grid grid-cols-2 gap-4 text-gray-700">
+
 <p><b>Nombre:</b> {registro.nombre_animal}</p>
 <p><b>Especie:</b> {registro.especie}</p>
 <p><b>Sexo:</b> {registro.sexo}</p>
 <p><b>Edad:</b> {registro.edad}</p>
 <p><b>Peso:</b> {registro.peso}</p>
+<p><b>Tipo:</b> {registro.tipo_animal}</p>
 
 </div>
 
+</div>
 
 <div className="bg-white rounded-2xl shadow-xl p-6">
 
@@ -287,17 +294,55 @@ Datos del Animal
 Datos de la Cirugía
 </h2>
 
-<p><b>Hora asignada:</b> {registro.hora}</p>
+<p className="text-gray-700 text-lg">
+<b>Hora asignada:</b> {registro.hora || "No asignada"}
+</p>
 
 </div>
 
+<div className="bg-white rounded-2xl shadow-xl p-6">
+
+<h2 className="text-xl font-bold text-[#0F6D6A] mb-6 text-center">
+Fotos del Registro
+</h2>
+
+<div className="flex justify-center gap-6 flex-wrap">
+
+{registro.foto_frente && (
+<img
+src={registro.foto_frente}
+onClick={()=>setFotoModal(registro.foto_frente)}
+className="w-40 h-40 object-cover rounded-xl shadow-md cursor-pointer hover:scale-105 transition"
+/>
+)}
+
+{registro.foto_lado && (
+<img
+src={registro.foto_lado}
+onClick={()=>setFotoModal(registro.foto_lado)}
+className="w-40 h-40 object-cover rounded-xl shadow-md cursor-pointer hover:scale-105 transition"
+/>
+)}
+
+{registro.foto_carnet && (
+<img
+src={registro.foto_carnet}
+onClick={()=>setFotoModal(registro.foto_carnet)}
+className="w-40 h-40 object-cover rounded-xl shadow-md cursor-pointer hover:scale-105 transition"
+/>
+)}
+
+</div>
+
+</div>
 
 <div className="flex justify-center gap-6 pt-6 flex-wrap">
 
 <button
 onClick={marcarApto}
 disabled={finalizado}
-className="px-10 py-4 rounded-xl font-bold text-lg bg-green-600 hover:bg-green-700 text-white"
+className={`px-10 py-4 rounded-xl font-bold text-lg shadow-md transition
+${finalizado ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700 text-white"}`}
 >
 APTO
 </button>
@@ -305,7 +350,8 @@ APTO
 <button
 onClick={marcarNoApto}
 disabled={finalizado}
-className="px-10 py-4 rounded-xl font-bold text-lg bg-red-600 hover:bg-red-700 text-white"
+className={`px-10 py-4 rounded-xl font-bold text-lg shadow-md transition
+${finalizado ? "bg-gray-400 cursor-not-allowed" : "bg-red-600 hover:bg-red-700 text-white"}`}
 >
 NO APTO
 </button>
@@ -313,7 +359,8 @@ NO APTO
 <button
 onClick={reprogramar}
 disabled={finalizado}
-className="px-10 py-4 rounded-xl font-bold text-lg bg-orange-500 hover:bg-orange-600 text-white"
+className={`px-10 py-4 rounded-xl font-bold text-lg shadow-md transition
+${finalizado ? "bg-gray-400 cursor-not-allowed" : "bg-orange-500 hover:bg-orange-600 text-white"}`}
 >
 REPROGRAMAR
 </button>
@@ -321,6 +368,22 @@ REPROGRAMAR
 </div>
 
 </div>
+
+{fotoModal && (
+
+<div
+onClick={()=>setFotoModal(null)}
+className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
+>
+
+<img
+src={fotoModal}
+className="max-h-[90%] max-w-[90%] rounded-xl shadow-2xl"
+/>
+
+</div>
+
+)}
 
 </div>
 
