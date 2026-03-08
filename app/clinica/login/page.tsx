@@ -12,8 +12,6 @@ const [loading,setLoading] = useState(false)
 
 const router = useRouter()
 
-/* LOGIN */
-
 const login = async () => {
 
 if(!usuario || !senha){
@@ -49,11 +47,23 @@ localStorage.setItem("clinica_id",clinica.id)
 localStorage.setItem("clinica_zona",clinica.zona)
 localStorage.setItem("clinica_login_time",Date.now().toString())
 
+/* REDIRECCION AUTOMÁTICA AL PACIENTE */
+
+const paciente = sessionStorage.getItem("paciente_redirect")
+
+if(paciente){
+
+sessionStorage.removeItem("paciente_redirect")
+
+router.push("/clinica/"+paciente)
+
+}else{
+
 router.push("/clinica")
 
 }
 
-/* ENTER PARA LOGIN */
+}
 
 function handleKey(e:any){
 
@@ -63,29 +73,20 @@ login()
 
 }
 
-
 return(
 
 <div className="min-h-screen flex flex-col items-center justify-center bg-[#0F6D6A] px-6">
-
-
-{/* LOGO */}
 
 <img 
 src="/logo.png"
 className="w-56 mb-10"
 />
 
-
-{/* CARD LOGIN */}
-
 <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-md">
-
 
 <h1 className="text-2xl font-bold mb-8 text-center text-[#0F6D6A]">
 Login Clínica
 </h1>
-
 
 <input
 type="text"
@@ -96,7 +97,6 @@ onKeyDown={handleKey}
 className="w-full border p-3 rounded-lg mb-4 outline-none"
 />
 
-
 <input
 type="password"
 placeholder="Contraseña"
@@ -105,7 +105,6 @@ onChange={(e)=>setSenha(e.target.value)}
 onKeyDown={handleKey}
 className="w-full border p-3 rounded-lg mb-6 outline-none"
 />
-
 
 <button
 onClick={login}
@@ -116,7 +115,6 @@ className="w-full bg-[#F47C2A] text-white py-3 rounded-lg hover:opacity-90 font-
 {loading ? "Entrando..." : "Entrar"}
 
 </button>
-
 
 </div>
 

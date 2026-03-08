@@ -9,7 +9,7 @@ export default function PacienteClinica(){
 const params = useParams()
 const router = useRouter()
 
-const codigo = Array.isArray(params.codigo) ? params.codigo[0] : params.codigo
+const codigo = Array.isArray(params.codigo) ? params.codigo[0] : params.codigo ?? ""
 
 const [registro,setRegistro] = useState<any>(null)
 const [cargando,setCargando] = useState(true)
@@ -27,6 +27,7 @@ const loginTime = localStorage.getItem("clinica_login_time")
 
 if(!clinica || !loginTime){
 
+sessionStorage.setItem("paciente_redirect",codigo)
 router.push("/clinica/login")
 return
 
@@ -41,11 +42,12 @@ localStorage.removeItem("clinica_id")
 localStorage.removeItem("clinica_zona")
 localStorage.removeItem("clinica_login_time")
 
+sessionStorage.setItem("paciente_redirect",codigo)
 router.push("/clinica/login")
 
 }
 
-},[])
+},[codigo,router])
 
 
 /* CARGAR PACIENTE */
@@ -264,9 +266,6 @@ return(
 
 <div className="w-full max-w-4xl space-y-6">
 
-
-{/* TITULO */}
-
 <div className="text-center">
 
 <h1 className="text-4xl font-bold text-white">
@@ -275,9 +274,6 @@ Paciente {registro.codigo}
 
 </div>
 
-
-{/* ESTADO */}
-
 <div className="flex justify-center">
 
 <span className={`${colorEstado()} text-white px-6 py-2 rounded-full text-lg font-bold shadow-md`}>
@@ -285,9 +281,6 @@ Paciente {registro.codigo}
 </span>
 
 </div>
-
-
-{/* RESPONSABLE */}
 
 <div className="bg-white rounded-2xl shadow-xl p-6">
 
@@ -305,9 +298,6 @@ Datos del Responsable
 </div>
 
 </div>
-
-
-{/* ANIMAL */}
 
 <div className="bg-white rounded-2xl shadow-xl p-6">
 
@@ -328,9 +318,6 @@ Datos del Animal
 
 </div>
 
-
-{/* CIRUGIA */}
-
 <div className="bg-white rounded-2xl shadow-xl p-6">
 
 <h2 className="text-xl font-bold text-[#0F6D6A] mb-4">
@@ -342,9 +329,6 @@ Datos de la Cirugía
 </p>
 
 </div>
-
-
-{/* FOTOS */}
 
 <div className="bg-white rounded-2xl shadow-xl p-6">
 
@@ -382,9 +366,6 @@ className="w-40 h-40 object-cover rounded-xl shadow-md cursor-pointer hover:scal
 
 </div>
 
-
-{/* BOTONES */}
-
 <div className="flex justify-center gap-6 pt-6 flex-wrap">
 
 <button
@@ -417,9 +398,6 @@ REPROGRAMAR
 </div>
 
 </div>
-
-
-{/* MODAL FOTO */}
 
 {fotoModal && (
 
