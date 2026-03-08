@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Html5QrcodeScanner } from "html5-qrcode"
 import { supabase } from "@/lib/supabase"
+import { Html5Qrcode } from "html5-qrcode"
 
 export default function ClinicaPage(){
 
 const [codigo,setCodigo] = useState("")
+const [escaneando,setEscaneando] = useState(false)
+
 const [resumen,setResumen] = useState<any>({
 perro_macho:0,
 perra_hembra:0,
@@ -49,28 +51,46 @@ router.push("/clinica/login")
 
 useEffect(()=>{
 
-const scanner = new Html5QrcodeScanner(
-"reader",
-{ fps:10, qrbox:250 },
-false
-)
+let scanner:any
 
-scanner.render(
-(result:any)=>{
+async function iniciarScanner(){
 
-const codigoQR = result.split("/").pop()
+scanner = new Html5Qrcode("reader")
+
+try{
+
+await scanner.start(
+{ facingMode:"environment" },
+{
+fps:10,
+qrbox:250
+},
+(decodedText:string)=>{
+
+const codigoQR = decodedText.split("/").pop()
 
 router.push("/clinica/"+codigoQR)
 
-},
-(error:any)=>{}
+}
 )
 
-return ()=>{
-scanner.clear().catch(()=>{})
+}catch(err){
+console.log(err)
 }
 
-},[])
+}
+
+if(escaneando){
+iniciarScanner()
+}
+
+return ()=>{
+if(scanner){
+scanner.stop().catch(()=>{})
+}
+}
+
+},[escaneando])
 
 
 /* BUSCAR PACIENTE */
@@ -181,6 +201,22 @@ Escanear Paciente
 </h1>
 
 
+{/* BOTÃO ABRIR CÂMERA */}
+
+{!escaneando && (
+
+<button
+onClick={()=>setEscaneando(true)}
+className="bg-[#f47c2a] text-white px-8 py-4 rounded-xl text-lg font-bold shadow-lg hover:scale-105 transition"
+>
+
+📷 Abrir cámara
+
+</button>
+
+)}
+
+
 {/* SCANNER */}
 
 <div
@@ -237,7 +273,7 @@ Total: {total}
 
 <button
 onClick={logout}
-className="text-white underline"
+className="text-white underline hover:opacity-80"
 >
 Cerrar sesión
 </button>
