@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase"
 import { useParams } from "next/navigation"
 import QRCode from "qrcode"
 
-export default function PacienteQR(){
+export default function PacienteClinica(){
 
 const params = useParams()
 
