@@ -64,7 +64,8 @@ const { data,error } = await supabase
 .from("registros")
 .select("*")
 .ilike("codigo",codigoLimpo)
-.single()
+.limit(1)
+.maybeSingle()
 
 if(error){
 
