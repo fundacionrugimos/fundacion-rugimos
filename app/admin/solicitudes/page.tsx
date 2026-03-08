@@ -272,7 +272,7 @@ const mensaje =
 "• Ayuno agua: 4 horas\n"+
 "• Llevar manta\n"+
 "• Llegar 15 min antes\n"+
-"• En caso de perro(a) hembra traer Hemograma + Urea + Creatinina\n\n"+
+"• En caso de perra hembra se solicita Hemograma + Urea + Creatinina\n\n"+
 "📲 Presenta tu QR en la clínica:\n"+
 linkQR+"\n\n"+
 "Gracias por apoyar la esterilización responsable 💚"
