@@ -151,11 +151,11 @@ return(
 
 <div className="bg-white rounded-2xl shadow-xl p-10 max-w-xl text-center">
 
-<h2 className="text-2xl font-bold text-green-600 mb-4">
+<h2 className="text-3xl font-bold text-green-600 mb-6">
 ✅ Solicitud enviada correctamente
 </h2>
 
-<p className="text-gray-700 leading-relaxed">
+<p className="text-gray-800 leading-relaxed text-lg">
 
 Gracias por solicitar su cupo para la esterilización gratuita de la Fundación Rugimos.
 
@@ -163,16 +163,24 @@ Gracias por solicitar su cupo para la esterilización gratuita de la Fundación 
 
 Nos comunicaremos con usted en un plazo máximo de 24 horas al número de WhatsApp proporcionado.
 
+<br/><br/>
+
+Su ayuda es muy importante. El programa es gratuito, pero con cada aporte podremos esterilizar a más animales.
+
 </p>
 
 <div className="flex justify-center mt-6">
 
 <img
 src="/qr.png"
-className="w-48 h-48"
+className="w-56 h-56"
 />
 
 </div>
+
+<p className="text-sm text-gray-500 mt-4">
+Banco Ganadero S.A.
+</p>
 
 </div>
 
@@ -186,31 +194,31 @@ return(
 
 <div className="min-h-screen bg-[#0f6a63] flex justify-center p-6">
 
-<form onSubmit={handleSubmit} className="w-full max-w-4xl space-y-6">
+<form onSubmit={handleSubmit} className="w-full max-w-4xl space-y-6 text-gray-800">
 
 <div className="bg-white rounded-2xl shadow-lg p-6">
 
-<h2 className="text-xl font-bold mb-4">
+<h2 className="text-xl font-bold mb-4 text-gray-900">
 Datos del Responsable
 </h2>
 
 <div className="grid md:grid-cols-3 gap-4 mb-4">
 
-<input name="nombre" placeholder="Nombre" required className="border p-3 rounded-lg"/>
+<input name="nombre" placeholder="Nombre" required className="border p-3 rounded-lg text-gray-800"/>
 
-<input name="apellido1" placeholder="Primer apellido" required className="border p-3 rounded-lg"/>
+<input name="apellido1" placeholder="Primer apellido" required className="border p-3 rounded-lg text-gray-800"/>
 
-<input name="apellido2" placeholder="Segundo apellido" required className="border p-3 rounded-lg"/>
+<input name="apellido2" placeholder="Segundo apellido" required className="border p-3 rounded-lg text-gray-800"/>
 
 </div>
 
 <div className="grid md:grid-cols-2 gap-4">
 
-<input name="ci" placeholder="CI" required className="border p-3 rounded-lg"/>
+<input name="ci" placeholder="CI" required className="border p-3 rounded-lg text-gray-800"/>
 
-<input name="celular" placeholder="Celular" required className="border p-3 rounded-lg"/>
+<input name="celular" placeholder="Celular" required className="border p-3 rounded-lg text-gray-800"/>
 
-<select name="ubicacion" required className="border p-3 rounded-lg md:col-span-2">
+<select name="ubicacion" required className="border p-3 rounded-lg md:col-span-2 text-gray-800">
 <option value="">Seleccionar zona</option>
 <option value="Norte">Norte</option>
 <option value="Centro-Norte">Centro-Norte</option>
@@ -225,27 +233,27 @@ Datos del Responsable
 
 <div className="bg-white rounded-2xl shadow-lg p-6">
 
-<h2 className="text-xl font-bold mb-4">
+<h2 className="text-xl font-bold mb-4 text-gray-900">
 Datos del Animal
 </h2>
 
 <div className="grid md:grid-cols-2 gap-4">
 
-<input name="nombre_animal" placeholder="Nombre del animal" required className="border p-3 rounded-lg"/>
+<input name="nombre_animal" placeholder="Nombre del animal" required className="border p-3 rounded-lg text-gray-800"/>
 
-<select name="especie" required className="border p-3 rounded-lg">
+<select name="especie" required className="border p-3 rounded-lg text-gray-800">
 <option value="">Especie</option>
 <option value="Perro">Perro</option>
 <option value="Gato">Gato</option>
 </select>
 
-<select name="sexo" required className="border p-3 rounded-lg">
+<select name="sexo" required className="border p-3 rounded-lg text-gray-800">
 <option value="">Sexo</option>
 <option value="Macho">Macho</option>
 <option value="Hembra">Hembra</option>
 </select>
 
-<select name="edad" required className="border p-3 rounded-lg">
+<select name="edad" required className="border p-3 rounded-lg text-gray-800">
 <option value="">Edad</option>
 <option value="<6 meses">Menos de 6 meses</option>
 <option value="6 meses a 1 año">6 meses a 1 año</option>
@@ -253,9 +261,9 @@ Datos del Animal
 <option value=">3 años">Más de 3 años</option>
 </select>
 
-<input name="peso" placeholder="Peso" required className="border p-3 rounded-lg"/>
+<input name="peso" placeholder="Peso" required className="border p-3 rounded-lg text-gray-800"/>
 
-<select name="tipo_animal" required className="border p-3 rounded-lg">
+<select name="tipo_animal" required className="border p-3 rounded-lg text-gray-800">
 <option value="">Animal</option>
 <option value="Propio">Propio</option>
 <option value="Calle">De la calle</option>
@@ -267,7 +275,7 @@ Datos del Animal
 
 <div className="bg-white rounded-2xl shadow-lg p-6">
 
-<h2 className="text-xl font-bold mb-4">
+<h2 className="text-xl font-bold mb-4 text-gray-900">
 Fotos del Registro
 </h2>
 
@@ -278,7 +286,7 @@ Fotos del Registro
 {previewFrente ?
 <img src={previewFrente} className="h-24 object-cover rounded"/>
 :
-<span>Frente del animal</span>
+<span className="text-gray-600">Frente del animal</span>
 }
 
 <input type="file" name="foto_frente" className="hidden"
@@ -293,7 +301,7 @@ required
 {previewLado ?
 <img src={previewLado} className="h-24 object-cover rounded"/>
 :
-<span>Lateral del animal</span>
+<span className="text-gray-600">Lateral del animal</span>
 }
 
 <input type="file" name="foto_lado" className="hidden"
@@ -308,7 +316,7 @@ required
 {previewCarnet ?
 <img src={previewCarnet} className="h-24 object-cover rounded"/>
 :
-<span>Carnet del responsable</span>
+<span className="text-gray-600">Carnet del responsable</span>
 }
 
 <input type="file" name="foto_carnet" className="hidden"
@@ -325,7 +333,7 @@ required
 <button
 type="submit"
 disabled={loading}
-className="w-full bg-[#f47c3c] text-white py-4 rounded-2xl font-bold"
+className="w-full bg-[#f47c3c] text-white py-4 rounded-2xl font-bold text-lg"
 >
 
 {loading ? "Enviando..." : "Enviar Solicitud"}
