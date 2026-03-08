@@ -130,6 +130,10 @@ return
 
 alert("Paciente marcado como APTO")
 
+/* ACTUALIZA CONTADOR AUTOMÁTICO */
+
+localStorage.setItem("rugimos_update_resumen", Date.now().toString())
+
 volverClinica()
 
 }
