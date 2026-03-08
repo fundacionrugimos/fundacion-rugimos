@@ -58,6 +58,7 @@ if(!whatsappData) return
 
 const telefono = whatsappData.telefono.replace(/\D/g,"")
 const mensaje = encodeURIComponent(whatsappData.mensaje)
+
 const url = "https://wa.me/591"+telefono+"?text="+mensaje
 
 window.open(url,"_blank")
@@ -140,7 +141,6 @@ return
 
 if(nuevoEstado === "Aprobado"){
 
-// 🔴 ESTA ES LA ÚNICA LÍNEA CAMBIADA
 const codigoGenerado = solicitud.codigo
 
 const {data:clinicas,error:clinicaError} = await supabase
@@ -252,7 +252,9 @@ qr_code:qr
 
 }])
 
-const linkQR = "https://fundacion-rugimos.vercel.app/clinica/"+codigoGenerado
+/* LINK CORRIGIDO */
+
+const linkQR = "https://fundacion-rugimos.vercel.app/paciente/"+codigoGenerado
 
 const mensaje =
 "🐾 FUNDACIÓN RUGIMOS 🐾\n\n"+
