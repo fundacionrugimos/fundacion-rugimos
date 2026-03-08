@@ -256,18 +256,23 @@ qr_code:qr
 
 const linkQR = "https://fundacion-rugimos.vercel.app/paciente/"+codigoGenerado
 
+const linkMapa = "https://www.google.com/maps?q="+clinicaData.lat+","+clinicaData.lng
+
 const mensaje =
 "🐾 FUNDACIÓN RUGIMOS 🐾\n\n"+
 "Tu solicitud fue APROBADA ✅\n\n"+
 "Código Rugimos:\n"+codigoGenerado+"\n\n"+
 "Mascota:\n"+solicitud.nombre_animal+" ("+solicitud.especie+")\n\n"+
-"Clínica:\n"+clinicaData.nome+"\n\n"+
+"Clínica:\n"+clinicaData.nome+"\n"+
+"Ubicación:\n"+clinicaData.direccion+"\n\n"+
+"📍 Ver en Google Maps:\n"+linkMapa+"\n\n"+
 "Hora de llegada:\n"+horaAsignada+"\n\n"+
 "INSTRUCCIONES\n\n"+
 "• Ayuno comida: 8 horas\n"+
 "• Ayuno agua: 4 horas\n"+
 "• Llevar manta\n"+
-"• Llegar 15 min antes\n\n"+
+"• Llegar 15 min antes\n"+
+"• En caso de perro(a) hembra traer Hemograma + Urea + Creatinina\n\n"+
 "📲 Presenta tu QR en la clínica:\n"+
 linkQR+"\n\n"+
 "Gracias por apoyar la esterilización responsable 💚"
