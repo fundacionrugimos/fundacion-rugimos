@@ -34,7 +34,7 @@ setRegistro(data)
 
 /* GENERAR QR MEJORADO */
 
-const url = `https://fundacion-rugimos.vercel.app/clinica/${codigo}`
+const url = `https://fundacion-rugimos.vercel.app/paciente/${codigo}`
 
 const qrImage = await QRCode.toDataURL(url,{
 width: 400,
