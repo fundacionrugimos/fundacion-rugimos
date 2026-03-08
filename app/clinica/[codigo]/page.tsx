@@ -39,9 +39,18 @@ cargar()
 },[codigo])
 
 
+/* ESTADO FINAL */
+
+const finalizado =
+registro?.estado_clinica === "Apto" ||
+registro?.estado_clinica === "Rechazado"
+
+
 /* MARCAR APTO */
 
 async function marcarApto(){
+
+if(finalizado) return
 
 const { error } = await supabase
 .from("registros")
@@ -67,6 +76,8 @@ cargar()
 /* MARCAR NO APTO */
 
 async function marcarNoApto(){
+
+if(finalizado) return
 
 const motivo = prompt("Motivo do NO APTO:")
 
@@ -100,6 +111,8 @@ cargar()
 
 async function reprogramar(){
 
+if(finalizado) return
+
 const motivo = prompt("Motivo da reprogramação:")
 
 if(!motivo){
@@ -111,7 +124,8 @@ const { error } = await supabase
 .from("registros")
 .update({
 estado_clinica:"Reprogramado",
-motivo_no_apto:motivo
+motivo_no_apto:motivo,
+fecha_reprogramacion:new Date()
 })
 .eq("codigo",codigo)
 
@@ -124,6 +138,27 @@ return
 alert("Cirugía reprogramada")
 
 cargar()
+
+}
+
+
+/* STATUS VISUAL */
+
+function colorEstado(){
+
+if(!registro?.estado_clinica) return "bg-yellow-500"
+
+if(registro.estado_clinica === "Pendiente") return "bg-yellow-500"
+
+if(registro.estado_clinica === "Apto") return "bg-green-600"
+
+if(registro.estado_clinica === "Rechazado") return "bg-red-600"
+
+if(registro.estado_clinica === "Reprogramado") return "bg-orange-500"
+
+if(registro.estado_clinica === "No Show") return "bg-gray-700"
+
+return "bg-gray-400"
 
 }
 
@@ -143,20 +178,36 @@ Cargando paciente...
 
 return(
 
-<div className="min-h-screen bg-[#f3f4f6] flex items-center justify-center p-8">
+<div className="min-h-screen bg-[#0F6D6A] flex items-center justify-center p-8">
 
 <div className="w-full max-w-4xl space-y-6">
 
+
 {/* TITULO */}
 
-<h1 className="text-3xl font-bold text-center text-[#0F6D6A]">
+<div className="text-center">
+
+<h1 className="text-4xl font-bold text-white">
 Paciente {registro.codigo}
 </h1>
+
+</div>
+
+
+{/* ESTADO */}
+
+<div className="flex justify-center">
+
+<span className={`${colorEstado()} text-white px-6 py-2 rounded-full text-lg font-bold shadow-md`}>
+{registro.estado_clinica || "Pendiente"}
+</span>
+
+</div>
 
 
 {/* RESPONSABLE */}
 
-<div className="bg-white rounded-2xl shadow-lg p-6">
+<div className="bg-white rounded-2xl shadow-xl p-6">
 
 <h2 className="text-xl font-bold text-[#0F6D6A] mb-4">
 Datos del Responsable
@@ -176,7 +227,7 @@ Datos del Responsable
 
 {/* ANIMAL */}
 
-<div className="bg-white rounded-2xl shadow-lg p-6">
+<div className="bg-white rounded-2xl shadow-xl p-6">
 
 <h2 className="text-xl font-bold text-[#0F6D6A] mb-4">
 Datos del Animal
@@ -198,7 +249,7 @@ Datos del Animal
 
 {/* CIRUGIA */}
 
-<div className="bg-white rounded-2xl shadow-lg p-6">
+<div className="bg-white rounded-2xl shadow-xl p-6">
 
 <h2 className="text-xl font-bold text-[#0F6D6A] mb-4">
 Datos de la Cirugía
@@ -208,16 +259,12 @@ Datos de la Cirugía
 <b>Hora asignada:</b> {registro.hora || "No asignada"}
 </p>
 
-<p className="text-gray-700 text-lg">
-<b>Estado:</b> {registro.estado_clinica || "Pendiente"}
-</p>
-
 </div>
 
 
 {/* FOTOS */}
 
-<div className="bg-white rounded-2xl shadow-lg p-6">
+<div className="bg-white rounded-2xl shadow-xl p-6">
 
 <h2 className="text-xl font-bold text-[#0F6D6A] mb-4">
 Fotos del Registro
@@ -248,21 +295,27 @@ Fotos del Registro
 
 <button
 onClick={marcarApto}
-className="bg-green-600 hover:bg-green-700 text-white px-10 py-4 rounded-xl font-bold text-lg shadow-md transition"
+disabled={finalizado}
+className={`px-10 py-4 rounded-xl font-bold text-lg shadow-md transition
+${finalizado ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700 text-white"}`}
 >
 APTO
 </button>
 
 <button
 onClick={marcarNoApto}
-className="bg-red-600 hover:bg-red-700 text-white px-10 py-4 rounded-xl font-bold text-lg shadow-md transition"
+disabled={finalizado}
+className={`px-10 py-4 rounded-xl font-bold text-lg shadow-md transition
+${finalizado ? "bg-gray-400 cursor-not-allowed" : "bg-red-600 hover:bg-red-700 text-white"}`}
 >
 NO APTO
 </button>
 
 <button
 onClick={reprogramar}
-className="bg-yellow-500 hover:bg-yellow-600 text-white px-10 py-4 rounded-xl font-bold text-lg shadow-md transition"
+disabled={finalizado}
+className={`px-10 py-4 rounded-xl font-bold text-lg shadow-md transition
+${finalizado ? "bg-gray-400 cursor-not-allowed" : "bg-orange-500 hover:bg-orange-600 text-white"}`}
 >
 REPROGRAMAR
 </button>
