@@ -40,7 +40,7 @@ setRegistro(data)
 
 /* GENERAR QR GRANDE PARA LA CLÍNICA */
 
-const urlClinica = `https://fundacion-rugimos.vercel.app/clinica/${codigo}`
+const urlClinica = `https://fundacion-rugimos.vercel.app/paciente/${codigo}`
 
 const qrImage = await QRCode.toDataURL(urlClinica,{
 width:400,
