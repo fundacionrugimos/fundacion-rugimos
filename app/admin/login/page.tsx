@@ -17,7 +17,10 @@ if(email === "admin@rugimos.com" && senha === "rugimos123"){
 localStorage.setItem("admin_logged","true")
 localStorage.setItem("admin_login_time", Date.now().toString())
 
-router.push("/admin")
+// pequeno delay para garantir que o localStorage foi salvo
+setTimeout(()=>{
+router.replace("/admin")
+},200)
 
 }else{
 
