@@ -19,6 +19,11 @@ const { data,error } = await supabase
 .eq("codigo",codigo)
 .single()
 
+if(error){
+console.log("Error cargando registro:",error)
+return
+}
+
 if(data){
 setRegistro(data)
 }
@@ -26,15 +31,21 @@ setRegistro(data)
 }
 
 useEffect(()=>{
+if(codigo){
 cargar()
-},[])
+}
+},[codigo])
+
+
+/* MARCAR APTO */
 
 async function marcarApto(){
 
-const { error } = await supabase
+const { data,error } = await supabase
 .from("registros")
 .update({ estado:"Apto" })
 .eq("codigo",codigo)
+.select()
 
 if(error){
 console.log(error)
@@ -44,14 +55,20 @@ return
 
 alert("Paciente marcado como APTO")
 
+cargar()
+
 }
+
+
+/* MARCAR NO APTO */
 
 async function marcarNoApto(){
 
-const { error } = await supabase
+const { data,error } = await supabase
 .from("registros")
 .update({ estado:"No Apto" })
 .eq("codigo",codigo)
+.select()
 
 if(error){
 console.log(error)
@@ -61,7 +78,12 @@ return
 
 alert("Paciente marcado como NO APTO")
 
+cargar()
+
 }
+
+
+/* CARGANDO */
 
 if(!registro){
 
@@ -73,9 +95,10 @@ Cargando paciente...
 
 }
 
+
 return(
 
-<div className="min-h-screen bg-gray-100 flex items-center justify-center p-8">
+<div className="min-h-screen bg-[#f3f4f6] flex items-center justify-center p-8">
 
 <div className="w-full max-w-4xl space-y-6">
 
@@ -176,14 +199,14 @@ Fotos del Registro
 
 <button
 onClick={marcarApto}
-className="bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-xl font-bold text-lg shadow-md"
+className="bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-xl font-bold text-lg shadow-md transition"
 >
 APTO
 </button>
 
 <button
 onClick={marcarNoApto}
-className="bg-red-600 hover:bg-red-700 text-white px-12 py-4 rounded-xl font-bold text-lg shadow-md"
+className="bg-red-600 hover:bg-red-700 text-white px-12 py-4 rounded-xl font-bold text-lg shadow-md transition"
 >
 NO APTO
 </button>
