@@ -23,29 +23,26 @@ setPreview(url)
 
 async function generarCodigoRG() {
 
-  const { data } = await supabase
-    .from("solicitudes")
-    .select("codigo")
+const { data } = await supabase
+.from("solicitudes")
+.select("codigo")
 
-  if (!data || data.length === 0) {
-    return "RG1"
-  }
+if (!data || data.length === 0) return "RG1"
 
-  const codigos = data
-    .map((r: any) => r.codigo)
-    .filter((c: any) => /^RG\d+$/.test(c))
+const codigos = data
+.map((r:any)=>r.codigo)
+.filter((c:any)=>/^RG\d+$/.test(c))
 
-  if (codigos.length === 0) {
-    return "RG1"
-  }
+if(codigos.length===0) return "RG1"
 
-  const numeros = codigos.map((c: any) => {
-    return parseInt(c.replace("RG", ""))
-  })
+const numeros = codigos.map((c:any)=>{
+return parseInt(c.replace("RG",""))
+})
 
-  const mayor = Math.max(...numeros)
+const mayor = Math.max(...numeros)
 
-  return "RG" + (mayor + 1)
+return "RG"+(mayor+1)
+
 }
 
 const handleSubmit = async (e:any)=>{
@@ -171,10 +168,7 @@ Su ayuda es muy importante. El programa es gratuito, pero con cada aporte podrem
 
 <div className="flex justify-center mt-6">
 
-<img
-src="/qr.png"
-className="w-56 h-56"
-/>
+<img src="/qr.png" className="w-56 h-56"/>
 
 </div>
 
@@ -214,9 +208,38 @@ Datos del Responsable
 
 <div className="grid md:grid-cols-2 gap-4">
 
-<input name="ci" placeholder="CI" required className="border p-3 rounded-lg text-gray-800"/>
+<input
+name="ci"
+type="text"
+placeholder="CI"
+required
+inputMode="numeric"
+onInput={(e:any)=>{
+e.target.value = e.target.value.replace(/[^0-9]/g,"")
+}}
+className="border p-3 rounded-lg text-gray-800"
+/>
 
-<input name="celular" placeholder="Celular" required className="border p-3 rounded-lg text-gray-800"/>
+<div className="flex">
+
+<span className="flex items-center px-3 bg-gray-200 border border-r-0 rounded-l-lg text-gray-700">
++591
+</span>
+
+<input
+name="celular"
+type="text"
+placeholder="70000000"
+required
+maxLength={8}
+inputMode="numeric"
+onInput={(e:any)=>{
+e.target.value = e.target.value.replace(/[^0-9]/g,"").slice(0,8)
+}}
+className="border p-3 rounded-r-lg w-full text-gray-800"
+/>
+
+</div>
 
 <select name="ubicacion" required className="border p-3 rounded-lg md:col-span-2 text-gray-800">
 <option value="">Seleccionar zona</option>
@@ -261,7 +284,22 @@ Datos del Animal
 <option value=">3 años">Más de 3 años</option>
 </select>
 
-<input name="peso" placeholder="Peso" required className="border p-3 rounded-lg text-gray-800"/>
+<input
+name="peso"
+type="text"
+placeholder="Peso"
+required
+inputMode="numeric"
+onInput={(e:any)=>{
+e.target.value = e.target.value.replace(/[^0-9]/g,"")
+}}
+onBlur={(e:any)=>{
+if(e.target.value){
+e.target.value = e.target.value.replace(" kg","")+" kg"
+}
+}}
+className="border p-3 rounded-lg text-gray-800"
+/>
 
 <select name="tipo_animal" required className="border p-3 rounded-lg text-gray-800">
 <option value="">Animal</option>
