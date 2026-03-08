@@ -77,9 +77,11 @@ return(
 
 <div className="min-h-screen flex flex-col items-center justify-center bg-[#0F6D6A] px-6">
 
+{/* LOGO */}
+
 <img 
 src="/logo.png"
-className="w-56 mb-10"
+className="w-64 mb-10"
 />
 
 <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-md">
@@ -88,14 +90,18 @@ className="w-56 mb-10"
 Login Clínica
 </h1>
 
+{/* USUARIO */}
+
 <input
 type="text"
 placeholder="Usuario"
 value={usuario}
 onChange={(e)=>setUsuario(e.target.value)}
 onKeyDown={handleKey}
-className="w-full border p-3 rounded-lg mb-4 outline-none"
+className="w-full border border-gray-300 p-3 rounded-lg mb-4 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0F6D6A]"
 />
+
+{/* CONTRASEÑA */}
 
 <input
 type="password"
@@ -103,13 +109,15 @@ placeholder="Contraseña"
 value={senha}
 onChange={(e)=>setSenha(e.target.value)}
 onKeyDown={handleKey}
-className="w-full border p-3 rounded-lg mb-6 outline-none"
+className="w-full border border-gray-300 p-3 rounded-lg mb-6 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0F6D6A]"
 />
+
+{/* BOTON */}
 
 <button
 onClick={login}
 disabled={loading}
-className="w-full bg-[#F47C2A] text-white py-3 rounded-lg hover:opacity-90 font-semibold"
+className="w-full bg-[#F47C2A] text-white py-3 rounded-lg hover:opacity-90 font-semibold text-lg transition"
 >
 
 {loading ? "Entrando..." : "Entrar"}
