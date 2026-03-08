@@ -17,9 +17,7 @@ useEffect(()=>{
 // permitir página de login
 if(pathname === "/admin/login") return
 
-const logado =
-localStorage.getItem("admin_logged") ||
-localStorage.getItem("admin_logado")
+const logado = localStorage.getItem("admin_logged")
 
 if(!logado){
 
@@ -27,7 +25,7 @@ router.replace("/admin/login")
 
 }
 
-},[])
+},[pathname,router])
 
 return <>{children}</>
 
