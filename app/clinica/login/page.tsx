@@ -47,6 +47,7 @@ const clinica = data[0]
 
 localStorage.setItem("clinica_id",clinica.id)
 localStorage.setItem("clinica_zona",clinica.zona)
+localStorage.setItem("clinica_login_time",Date.now().toString())
 
 router.push("/clinica")
 

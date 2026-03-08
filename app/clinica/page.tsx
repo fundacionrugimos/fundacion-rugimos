@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
 export default function ClinicaPage(){
@@ -8,13 +8,75 @@ export default function ClinicaPage(){
 const [codigo,setCodigo] = useState("")
 const router = useRouter()
 
-function buscar(){
+/* PROTEÇÃO LOGIN */
 
-if(!codigo) return
+useEffect(()=>{
 
-router.push("/clinica/"+codigo)
+const clinica = localStorage.getItem("clinica_id")
+const loginTime = localStorage.getItem("clinica_login_time")
+
+if(!clinica || !loginTime){
+router.push("/clinica/login")
+return
+}
+
+const agora = Date.now()
+const cincoMin = 5 * 60 * 1000
+
+if(agora - Number(loginTime) > cincoMin){
+
+localStorage.removeItem("clinica_id")
+localStorage.removeItem("clinica_zona")
+localStorage.removeItem("clinica_login_time")
+
+router.push("/clinica/login")
 
 }
+
+},[])
+
+
+/* BUSCAR PACIENTE */
+
+function buscar(){
+
+if(!codigo){
+
+alert("Ingrese un código")
+
+return
+}
+
+const codigoLimpo = codigo.toUpperCase().trim()
+
+router.push("/clinica/"+codigoLimpo)
+
+}
+
+
+/* ENTER PARA BUSCAR */
+
+function handleKey(e:any){
+
+if(e.key === "Enter"){
+buscar()
+}
+
+}
+
+
+/* LOGOUT */
+
+function logout(){
+
+localStorage.removeItem("clinica_id")
+localStorage.removeItem("clinica_zona")
+localStorage.removeItem("clinica_login_time")
+
+router.push("/clinica/login")
+
+}
+
 
 return(
 
@@ -34,6 +96,7 @@ Buscar Paciente
 <input
 value={codigo}
 onChange={(e)=>setCodigo(e.target.value)}
+onKeyDown={handleKey}
 placeholder="Ingresar código RG"
 className="flex-1 px-8 py-5 text-lg outline-none"
 />
@@ -46,6 +109,13 @@ Buscar
 </button>
 
 </div>
+
+<button
+onClick={logout}
+className="mt-10 text-white underline"
+>
+Cerrar sesión
+</button>
 
 </div>
 

@@ -17,6 +17,37 @@ const [noEncontrado,setNoEncontrado] = useState(false)
 
 const [fotoModal,setFotoModal] = useState<string | null>(null)
 
+
+/* PROTECCIÓN LOGIN + TIEMPO DE SESIÓN */
+
+useEffect(()=>{
+
+const clinica = localStorage.getItem("clinica_id")
+const loginTime = localStorage.getItem("clinica_login_time")
+
+if(!clinica || !loginTime){
+
+router.push("/clinica/login")
+return
+
+}
+
+const ahora = Date.now()
+const cincoMin = 5 * 60 * 1000
+
+if(ahora - Number(loginTime) > cincoMin){
+
+localStorage.removeItem("clinica_id")
+localStorage.removeItem("clinica_zona")
+localStorage.removeItem("clinica_login_time")
+
+router.push("/clinica/login")
+
+}
+
+},[])
+
+
 /* CARGAR PACIENTE */
 
 async function cargar(){
@@ -409,5 +440,4 @@ className="max-h-[90%] max-w-[90%] rounded-xl shadow-2xl"
 </div>
 
 )
-
 }
