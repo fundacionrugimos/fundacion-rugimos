@@ -94,6 +94,31 @@ return R*c
 
 }
 
+const generarCodigoRG = async()=>{
+
+const {data} = await supabase
+.from("registros")
+.select("codigo")
+.order("id",{ascending:false})
+.limit(1)
+.single()
+
+let numero = 1
+
+if(data?.codigo){
+
+const match = data.codigo.match(/\d+/)
+
+if(match){
+numero = parseInt(match[0]) + 1
+}
+
+}
+
+return "RG"+numero
+
+}
+
 const cambiarEstado = async(solicitud:Solicitud,nuevoEstado:string)=>{
 
 setLoadingId(solicitud.id)
@@ -110,6 +135,8 @@ return
 }
 
 if(nuevoEstado === "Aprobado"){
+
+const codigoGenerado = await generarCodigoRG()
 
 const {data:clinicas,error:clinicaError} = await supabase
 .from("clinicas")
@@ -129,7 +156,6 @@ const zonas:any = {
 "Este": {lat:-17.78,lng:-63.15},
 "Oeste": {lat:-17.78,lng:-63.21},
 "Centro": {lat:-17.78,lng:-63.18},
-
 "Centro-Norte": {lat:-17.74,lng:-63.18},
 "Centro-Sur": {lat:-17.82,lng:-63.18},
 "Plan 3000": {lat:-17.85,lng:-63.15},
@@ -182,7 +208,7 @@ break
 }
 
 if(!clinicaData){
-alert("Todos los cupos están ocupados. Próximamente se habilitarán nuevos cupos.")
+alert("Todos los cupos están ocupados.")
 setLoadingId(null)
 return
 }
@@ -193,34 +219,7 @@ const { data: horario } = await supabase
 .eq("id", horarioId)
 .single()
 
-if(!horario){
-alert("Error obteniendo horario")
-setLoadingId(null)
-return
-}
-
-const horaAsignada = horario.hora
-
-const {data:ultimoRegistro} = await supabase
-.from("registros")
-.select("codigo")
-.order("created_at",{ascending:false})
-.limit(1)
-.single()
-
-let nuevoNumero = 1
-
-if(ultimoRegistro?.codigo){
-
-const numero = parseInt(ultimoRegistro.codigo.replace("RG",""))
-
-if(!isNaN(numero)){
-nuevoNumero = numero + 1
-}
-
-}
-
-const codigoGenerado = "RG"+nuevoNumero
+const horaAsignada = horario?.hora
 
 const qr = await generarQR(codigoGenerado)
 

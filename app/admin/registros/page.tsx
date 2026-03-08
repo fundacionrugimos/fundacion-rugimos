@@ -47,7 +47,7 @@ export default function RegistrosPage() {
 
     if (!confirm('¿Confirmar cambios en este registro?')) return
 
-    await supabase
+    const { error } = await supabase
       .from('registros')
       .update({
         nombre_responsable: registro.nombre_responsable,
@@ -60,6 +60,12 @@ export default function RegistrosPage() {
         sexo: registro.sexo
       })
       .eq('id', registro.id)
+
+    if (error) {
+      console.error(error)
+      alert('Error guardando cambios')
+      return
+    }
 
     setEditandoId(null)
     fetchRegistros()
