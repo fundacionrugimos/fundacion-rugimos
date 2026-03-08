@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 
 export default function PacienteClinica(){
 
 const params = useParams()
+const router = useRouter()
+
 const codigo = Array.isArray(params.codigo) ? params.codigo[0] : params.codigo
 
 const [registro,setRegistro] = useState<any>(null)
+const [fotoModal,setFotoModal] = useState<string | null>(null)
 
 /* CARGAR PACIENTE */
 
@@ -46,6 +49,17 @@ registro?.estado_clinica === "Apto" ||
 registro?.estado_clinica === "Rechazado"
 
 
+/* VOLVER AUTOMÁTICO */
+
+function volverClinica(){
+
+setTimeout(()=>{
+router.push("/clinica")
+},1200)
+
+}
+
+
 /* MARCAR APTO */
 
 async function marcarApto(){
@@ -66,9 +80,9 @@ alert("Error actualizando registro")
 return
 }
 
-alert("Paciente marcado como APTO y cirugía registrada")
+alert("Paciente marcado como APTO")
 
-cargar()
+volverClinica()
 
 }
 
@@ -102,7 +116,7 @@ return
 
 alert("Paciente marcado como NO APTO")
 
-cargar()
+volverClinica()
 
 }
 
@@ -137,12 +151,12 @@ return
 
 alert("Cirugía reprogramada")
 
-cargar()
+volverClinica()
 
 }
 
 
-/* STATUS VISUAL */
+/* CORES DO ESTADO */
 
 function colorEstado(){
 
@@ -273,15 +287,27 @@ Fotos del Registro
 <div className="flex gap-4 flex-wrap">
 
 {registro.foto_frente && (
-<img src={registro.foto_frente} className="w-36 h-36 object-cover rounded-lg shadow-md"/>
+<img
+src={registro.foto_frente}
+onClick={()=>setFotoModal(registro.foto_frente)}
+className="w-36 h-36 object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition"
+/>
 )}
 
 {registro.foto_lado && (
-<img src={registro.foto_lado} className="w-36 h-36 object-cover rounded-lg shadow-md"/>
+<img
+src={registro.foto_lado}
+onClick={()=>setFotoModal(registro.foto_lado)}
+className="w-36 h-36 object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition"
+/>
 )}
 
 {registro.foto_carnet && (
-<img src={registro.foto_carnet} className="w-36 h-36 object-cover rounded-lg shadow-md"/>
+<img
+src={registro.foto_carnet}
+onClick={()=>setFotoModal(registro.foto_carnet)}
+className="w-36 h-36 object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition"
+/>
 )}
 
 </div>
@@ -323,6 +349,25 @@ REPROGRAMAR
 </div>
 
 </div>
+
+
+{/* MODAL FOTO */}
+
+{fotoModal && (
+
+<div
+onClick={()=>setFotoModal(null)}
+className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
+>
+
+<img
+src={fotoModal}
+className="max-h-[90%] max-w-[90%] rounded-xl shadow-2xl"
+/>
+
+</div>
+
+)}
 
 </div>
 
