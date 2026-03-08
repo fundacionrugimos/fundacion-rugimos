@@ -24,6 +24,35 @@ setPreview(url)
 
 }
 
+async function generarCodigoRG(){
+
+const {data} = await supabase
+.from("solicitudes")
+.select("codigo")
+
+if(!data || data.length === 0){
+return "RG1"
+}
+
+const codigosRG = data
+.map((r:any)=>r.codigo)
+.filter((c:any)=>c && c.startsWith("RG"))
+
+if(codigosRG.length === 0){
+return "RG1"
+}
+
+const numeros = codigosRG.map((c:any)=>{
+const n = c.replace("RG","")
+return parseInt(n)
+}).filter((n:any)=>!isNaN(n))
+
+const mayor = Math.max(...numeros)
+
+return "RG"+(mayor+1)
+
+}
+
 const handleSubmit = async (e:React.FormEvent<HTMLFormElement>)=>{
 
 e.preventDefault()
@@ -58,9 +87,9 @@ return
 
 }
 
-const ano = new Date().getFullYear()
-const numero = Math.floor(100000 + Math.random()*900000)
-const codigoGenerado = `RUG-${ano}-${numero}`
+try{
+
+const codigoGenerado = await generarCodigoRG()
 
 const upload = async(file:File,name:string)=>{
 
@@ -80,8 +109,6 @@ const { data } = supabase.storage
 return data.publicUrl
 
 }
-
-try{
 
 const nombre = formData.get("nombre")
 const apellido1 = formData.get("apellido1")
@@ -304,99 +331,10 @@ className="border border-gray-300 p-3 rounded-lg text-gray-800"
 
 </div>
 
-<div className="bg-white rounded-2xl shadow-lg p-6">
-
-<h2 className="text-xl font-bold text-gray-900 mb-4">
-📸 Subir Fotos (Obligatorio)
-</h2>
-
-<div className="grid md:grid-cols-3 gap-4">
-
-<label htmlFor="foto_frente" className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer">
-
-{previewFrente ?
-
-<img src={previewFrente} className="h-24 object-cover rounded-md"/>
-
-:
-
-<span className="text-sm text-gray-500">Frente del animal</span>
-
-}
-
-<input
-id="foto_frente"
-type="file"
-name="foto_frente"
-accept="image/jpeg,image/png,image/webp"
-required
-className="hidden"
-onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewFrente)}
-/>
-
-</label>
-
-<label htmlFor="foto_lado" className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer">
-
-{previewLado ?
-
-<img src={previewLado} className="h-24 object-cover rounded-md"/>
-
-:
-
-<span className="text-sm text-gray-500">Lateral del animal</span>
-
-}
-
-<input
-id="foto_lado"
-type="file"
-name="foto_lado"
-accept="image/jpeg,image/png,image/webp"
-required
-className="hidden"
-onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewLado)}
-/>
-
-</label>
-
-<label htmlFor="foto_carnet" className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer">
-
-{previewCarnet ?
-
-<img src={previewCarnet} className="h-24 object-cover rounded-md"/>
-
-:
-
-<span className="text-sm text-gray-500">Carnet del responsable</span>
-
-}
-
-<input
-id="foto_carnet"
-type="file"
-name="foto_carnet"
-accept="image/jpeg,image/png,image/webp"
-required
-className="hidden"
-onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewCarnet)}
-/>
-
-</label>
-
-</div>
-
-<p className="text-sm text-gray-500 mt-2">
-Formatos permitidos: JPG, PNG, WEBP — Máximo 5MB cada imagen.
-</p>
-
-</div>
-
 <button
 type="submit"
 disabled={loading}
 className="w-full bg-[#f47c3c] text-white py-4 rounded-2xl font-bold hover:opacity-90 transition"
-
 >
 
 {loading ? "Enviando..." : "Enviar Solicitud"}
