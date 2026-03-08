@@ -77,7 +77,7 @@ const codigoGenerado = await generarCodigoRG()
 const upload = async(file:File,name:string)=>{
 
 const ext = file.name.split(".").pop()
-const path = `${codigoGenerado}_${name}.${ext}`
+const path = `${codigoGenerado}_${name}_${Date.now()}.${ext}`
 
 const {error} = await supabase.storage
 .from("solicitudes")
