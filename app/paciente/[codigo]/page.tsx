@@ -11,6 +11,10 @@ const params = useParams()
 
 const codigo = Array.isArray(params.codigo) ? params.codigo[0] : params.codigo ?? ""
 
+/* NORMALIZAR CÓDIGO (CORRECCIÓN QR) */
+
+const codigoLimpo = codigo.trim().toUpperCase()
+
 const [registro,setRegistro] = useState<any>(null)
 const [qr,setQr] = useState<string>("")
 const [cargando,setCargando] = useState(true)
@@ -25,7 +29,7 @@ setCargando(true)
 const {data,error} = await supabase
 .from("registros")
 .select("*")
-.eq("codigo",codigo)
+.ilike("codigo",codigoLimpo)
 .single()
 
 if(error){
@@ -40,7 +44,7 @@ setRegistro(data)
 
 /* GENERAR QR GRANDE PARA LA CLÍNICA */
 
-const urlClinica = `https://fundacion-rugimos.vercel.app/clinica/${codigo}`
+const urlClinica = `https://fundacion-rugimos.vercel.app/clinica/${codigoLimpo}`
 
 const qrImage = await QRCode.toDataURL(urlClinica,{
 width:400,
