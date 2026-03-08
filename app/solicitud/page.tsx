@@ -214,38 +214,9 @@ Datos del Responsable
 
 <div className="grid md:grid-cols-2 gap-4">
 
-{/* CI SOLO NUMEROS */}
+<input name="ci" placeholder="CI" required className="border p-3 rounded-lg text-gray-800"/>
 
-<input
-name="ci"
-placeholder="CI"
-required
-inputMode="numeric"
-pattern="[0-9]*"
-onInput={(e:any)=>{e.target.value = e.target.value.replace(/\D/g,"")}}
-className="border p-3 rounded-lg text-gray-800"
-/>
-
-{/* CELULAR +591 */}
-
-<div className="flex">
-
-<span className="flex items-center px-3 bg-gray-200 border border-r-0 rounded-l-lg text-gray-700">
-+591
-</span>
-
-<input
-name="celular"
-placeholder="Número de celular"
-required
-maxLength={8}
-inputMode="numeric"
-pattern="[0-9]{8}"
-onInput={(e:any)=>{e.target.value = e.target.value.replace(/\D/g,"").slice(0,8)}}
-className="border p-3 rounded-r-lg w-full text-gray-800"
-/>
-
-</div>
+<input name="celular" placeholder="Celular" required className="border p-3 rounded-lg text-gray-800"/>
 
 <select name="ubicacion" required className="border p-3 rounded-lg md:col-span-2 text-gray-800">
 <option value="">Seleccionar zona</option>
@@ -290,21 +261,7 @@ Datos del Animal
 <option value=">3 años">Más de 3 años</option>
 </select>
 
-{/* PESO AUTOMATICO KG */}
-
-<input
-name="peso"
-placeholder="Peso (kg)"
-required
-inputMode="numeric"
-onInput={(e:any)=>{e.target.value = e.target.value.replace(/\D/g,"")}}
-onBlur={(e:any)=>{
-if(e.target.value){
-e.target.value = e.target.value+" kg"
-}
-}}
-className="border p-3 rounded-lg text-gray-800"
-/>
+<input name="peso" placeholder="Peso" required className="border p-3 rounded-lg text-gray-800"/>
 
 <select name="tipo_animal" required className="border p-3 rounded-lg text-gray-800">
 <option value="">Animal</option>
@@ -316,7 +273,62 @@ className="border p-3 rounded-lg text-gray-800"
 
 </div>
 
-{/* RESTO DO CÓDIGO PERMANECE IGUAL */}
+<div className="bg-white rounded-2xl shadow-lg p-6">
+
+<h2 className="text-xl font-bold mb-4 text-gray-900">
+Fotos del Registro
+</h2>
+
+<div className="grid md:grid-cols-3 gap-4">
+
+<label className="border-2 border-dashed rounded-xl p-6 flex flex-col items-center cursor-pointer">
+
+{previewFrente ?
+<img src={previewFrente} className="h-24 object-cover rounded"/>
+:
+<span className="text-gray-600">Frente del animal</span>
+}
+
+<input type="file" name="foto_frente" className="hidden"
+onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewFrente)}
+required
+/>
+
+</label>
+
+<label className="border-2 border-dashed rounded-xl p-6 flex flex-col items-center cursor-pointer">
+
+{previewLado ?
+<img src={previewLado} className="h-24 object-cover rounded"/>
+:
+<span className="text-gray-600">Lateral del animal</span>
+}
+
+<input type="file" name="foto_lado" className="hidden"
+onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewLado)}
+required
+/>
+
+</label>
+
+<label className="border-2 border-dashed rounded-xl p-6 flex flex-col items-center cursor-pointer">
+
+{previewCarnet ?
+<img src={previewCarnet} className="h-24 object-cover rounded"/>
+:
+<span className="text-gray-600">Carnet del responsable</span>
+}
+
+<input type="file" name="foto_carnet" className="hidden"
+onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewCarnet)}
+required
+/>
+
+</label>
+
+</div>
+
+</div>
 
 <button
 type="submit"
