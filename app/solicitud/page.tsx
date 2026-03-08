@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { supabase } from "@/lib/supabase"
 
-export default function Solicitud() {
+export default function Solicitud(){
 
 const [loading,setLoading] = useState(false)
 const [enviado,setEnviado] = useState(false)
@@ -16,12 +16,9 @@ const MAX_SIZE = 5 * 1024 * 1024
 const ALLOWED_TYPES = ["image/jpeg","image/png","image/webp"]
 
 const handlePreview = (file:File,setPreview:any)=>{
-
 if(!file) return
-
 const url = URL.createObjectURL(file)
 setPreview(url)
-
 }
 
 async function generarCodigoRG(){
@@ -30,19 +27,15 @@ const {data} = await supabase
 .from("solicitudes")
 .select("codigo")
 
-if(!data || data.length === 0){
-return "RG1"
-}
+if(!data || data.length === 0) return "RG1"
 
-const codigosRG = data
+const codigos = data
 .map((r:any)=>r.codigo)
 .filter((c:any)=>c && c.startsWith("RG"))
 
-if(codigosRG.length === 0){
-return "RG1"
-}
+if(codigos.length === 0) return "RG1"
 
-const numeros = codigosRG.map((c:any)=>{
+const numeros = codigos.map((c:any)=>{
 const n = c.replace("RG","")
 return parseInt(n)
 }).filter((n:any)=>!isNaN(n))
@@ -53,38 +46,28 @@ return "RG"+(mayor+1)
 
 }
 
-const handleSubmit = async (e:React.FormEvent<HTMLFormElement>)=>{
+const handleSubmit = async (e:any)=>{
 
 e.preventDefault()
 setLoading(true)
 
-const form = e.currentTarget
-const formData = new FormData(form)
+const formData = new FormData(e.currentTarget)
 
 const fotoFrente = formData.get("foto_frente") as File
 const fotoLado = formData.get("foto_lado") as File
 const fotoCarnet = formData.get("foto_carnet") as File
 
-const validarImagen = (file:File)=>{
-
+const validar = (file:File)=>{
 if(!file) return false
 if(!ALLOWED_TYPES.includes(file.type)) return false
 if(file.size > MAX_SIZE) return false
-
 return true
-
 }
 
-if(
-!validarImagen(fotoFrente) ||
-!validarImagen(fotoLado) ||
-!validarImagen(fotoCarnet)
-){
-
+if(!validar(fotoFrente)||!validar(fotoLado)||!validar(fotoCarnet)){
 alert("Las imágenes deben ser JPG, PNG o WEBP y menores a 5MB.")
 setLoading(false)
 return
-
 }
 
 try{
@@ -93,18 +76,18 @@ const codigoGenerado = await generarCodigoRG()
 
 const upload = async(file:File,name:string)=>{
 
-const fileExt = file.name.split(".").pop()
-const filePath = `${codigoGenerado}_${name}.${fileExt}`
+const ext = file.name.split(".").pop()
+const path = `${codigoGenerado}_${name}.${ext}`
 
-const { error } = await supabase.storage
+const {error} = await supabase.storage
 .from("solicitudes")
-.upload(filePath,file)
+.upload(path,file)
 
 if(error) throw error
 
-const { data } = supabase.storage
+const {data} = supabase.storage
 .from("solicitudes")
-.getPublicUrl(filePath)
+.getPublicUrl(path)
 
 return data.publicUrl
 
@@ -120,9 +103,9 @@ const urlFrente = await upload(fotoFrente,"frente")
 const urlLado = await upload(fotoLado,"lado")
 const urlCarnet = await upload(fotoCarnet,"carnet")
 
-const { error } = await supabase.from("solicitudes").insert([
-
-{
+const {error} = await supabase
+.from("solicitudes")
+.insert([{
 
 codigo:codigoGenerado,
 nombre_completo:nombreCompleto,
@@ -140,18 +123,16 @@ foto_lado:urlLado,
 foto_carnet:urlCarnet,
 estado:"Pendiente"
 
-}
-
-])
+}])
 
 if(error) throw error
 
-form.reset()
+e.target.reset()
 setEnviado(true)
 
-}catch(error){
+}catch(err){
 
-console.error(error)
+console.error(err)
 alert("Ocurrió un error al enviar la solicitud.")
 
 }
@@ -182,17 +163,10 @@ Nos comunicaremos con usted en un plazo máximo de 24 horas al número de WhatsA
 
 </p>
 
-<p className="text-gray-700 mt-6 font-medium">
-
-Su ayuda es muy importante. El programa es gratuito, pero con cada aporte podremos esterilizar a más animales.
-
-</p>
-
 <div className="flex justify-center mt-6">
 
 <img
 src="/qr.png"
-alt="QR Donación Fundación Rugimos"
 className="w-48 h-48"
 />
 
@@ -210,64 +184,37 @@ return(
 
 <div className="min-h-screen bg-[#0f6a63] flex justify-center p-6">
 
-<form onSubmit={handleSubmit} className="w-full max-w-4xl space-y-6 mx-auto">
+<form onSubmit={handleSubmit} className="w-full max-w-4xl space-y-6">
 
 <div className="bg-white rounded-2xl shadow-lg p-6">
 
-<h2 className="text-xl font-bold text-gray-900 mb-4">
-👤 Datos del Responsable
+<h2 className="text-xl font-bold mb-4">
+Datos del Responsable
 </h2>
 
 <div className="grid md:grid-cols-3 gap-4 mb-4">
 
-<input name="nombre" placeholder="Nombre" required className="border border-gray-300 p-3 rounded-lg text-gray-800"/>
+<input name="nombre" placeholder="Nombre" required className="border p-3 rounded-lg"/>
 
-<input name="apellido1" placeholder="Primer apellido" required className="border border-gray-300 p-3 rounded-lg text-gray-800"/>
+<input name="apellido1" placeholder="Primer apellido" required className="border p-3 rounded-lg"/>
 
-<input name="apellido2" placeholder="Segundo apellido" required className="border border-gray-300 p-3 rounded-lg text-gray-800"/>
+<input name="apellido2" placeholder="Segundo apellido" required className="border p-3 rounded-lg"/>
 
 </div>
 
 <div className="grid md:grid-cols-2 gap-4">
 
-<input
-name="ci"
-placeholder="CI"
-required
-inputMode="numeric"
-onInput={(e:any)=>e.target.value=e.target.value.replace(/\D/g,'')}
-className="border border-gray-300 p-3 rounded-lg text-gray-800"
-/>
+<input name="ci" placeholder="CI" required className="border p-3 rounded-lg"/>
 
-<div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+<input name="celular" placeholder="Celular" required className="border p-3 rounded-lg"/>
 
-<span className="bg-gray-100 px-3 text-gray-700 font-medium">
-+591
-</span>
-
-<input
-name="celular"
-placeholder="71234567"
-required
-maxLength={8}
-inputMode="numeric"
-onInput={(e:any)=>{
-e.target.value=e.target.value.replace(/\D/g,'').slice(0,8)
-}}
-className="flex-1 p-3 outline-none"
-/>
-
-</div>
-
-<select name="ubicacion" required className="border border-gray-300 p-3 rounded-lg text-gray-800 md:col-span-2">
-
+<select name="ubicacion" required className="border p-3 rounded-lg md:col-span-2">
 <option value="">Seleccionar zona</option>
 <option value="Norte">Norte</option>
 <option value="Centro-Norte">Centro-Norte</option>
 <option value="Sur">Sur</option>
 <option value="Oeste">Oeste</option>
 <option value="Este">Este</option>
-
 </select>
 
 </div>
@@ -276,52 +223,37 @@ className="flex-1 p-3 outline-none"
 
 <div className="bg-white rounded-2xl shadow-lg p-6">
 
-<h2 className="text-xl font-bold text-gray-900 mb-4">
-🐾 Datos del Animal
+<h2 className="text-xl font-bold mb-4">
+Datos del Animal
 </h2>
 
 <div className="grid md:grid-cols-2 gap-4">
 
-<input
-name="nombre_animal"
-placeholder="Nombre del animal"
-required
-className="border border-gray-300 p-3 rounded-lg text-gray-800"
-/>
+<input name="nombre_animal" placeholder="Nombre del animal" required className="border p-3 rounded-lg"/>
 
-<select name="especie" required className="border border-gray-300 p-3 rounded-lg text-gray-800">
+<select name="especie" required className="border p-3 rounded-lg">
 <option value="">Especie</option>
 <option value="Perro">Perro</option>
 <option value="Gato">Gato</option>
 </select>
 
-<select name="sexo" required className="border border-gray-300 p-3 rounded-lg text-gray-800">
+<select name="sexo" required className="border p-3 rounded-lg">
 <option value="">Sexo</option>
 <option value="Macho">Macho</option>
 <option value="Hembra">Hembra</option>
 </select>
 
-<select name="edad" required className="border border-gray-300 p-3 rounded-lg text-gray-800">
+<select name="edad" required className="border p-3 rounded-lg">
 <option value="">Edad</option>
-<option value="<6 meses">&lt; 6 meses</option>
+<option value="<6 meses">Menos de 6 meses</option>
 <option value="6 meses a 1 año">6 meses a 1 año</option>
 <option value="1 a 3 años">1 a 3 años</option>
-<option value=">3 años">&gt; 3 años</option>
+<option value=">3 años">Más de 3 años</option>
 </select>
 
-<input
-name="peso"
-placeholder="Peso"
-required
-inputMode="numeric"
-onInput={(e:any)=>{
-let v=e.target.value.replace(/\D/g,'')
-e.target.value=v? v+" kg":""
-}}
-className="border border-gray-300 p-3 rounded-lg text-gray-800"
-/>
+<input name="peso" placeholder="Peso" required className="border p-3 rounded-lg"/>
 
-<select name="tipo_animal" required className="border border-gray-300 p-3 rounded-lg text-gray-800">
+<select name="tipo_animal" required className="border p-3 rounded-lg">
 <option value="">Animal</option>
 <option value="Propio">Propio</option>
 <option value="Calle">De la calle</option>
@@ -331,10 +263,67 @@ className="border border-gray-300 p-3 rounded-lg text-gray-800"
 
 </div>
 
+<div className="bg-white rounded-2xl shadow-lg p-6">
+
+<h2 className="text-xl font-bold mb-4">
+Fotos del Registro
+</h2>
+
+<div className="grid md:grid-cols-3 gap-4">
+
+<label className="border-2 border-dashed rounded-xl p-6 flex flex-col items-center cursor-pointer">
+
+{previewFrente ?
+<img src={previewFrente} className="h-24 object-cover rounded"/>
+:
+<span>Frente del animal</span>
+}
+
+<input type="file" name="foto_frente" className="hidden"
+onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewFrente)}
+required
+/>
+
+</label>
+
+<label className="border-2 border-dashed rounded-xl p-6 flex flex-col items-center cursor-pointer">
+
+{previewLado ?
+<img src={previewLado} className="h-24 object-cover rounded"/>
+:
+<span>Lateral del animal</span>
+}
+
+<input type="file" name="foto_lado" className="hidden"
+onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewLado)}
+required
+/>
+
+</label>
+
+<label className="border-2 border-dashed rounded-xl p-6 flex flex-col items-center cursor-pointer">
+
+{previewCarnet ?
+<img src={previewCarnet} className="h-24 object-cover rounded"/>
+:
+<span>Carnet del responsable</span>
+}
+
+<input type="file" name="foto_carnet" className="hidden"
+onChange={(e:any)=>handlePreview(e.target.files[0],setPreviewCarnet)}
+required
+/>
+
+</label>
+
+</div>
+
+</div>
+
 <button
 type="submit"
 disabled={loading}
-className="w-full bg-[#f47c3c] text-white py-4 rounded-2xl font-bold hover:opacity-90 transition"
+className="w-full bg-[#f47c3c] text-white py-4 rounded-2xl font-bold"
 >
 
 {loading ? "Enviando..." : "Enviar Solicitud"}
