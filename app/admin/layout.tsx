@@ -12,13 +12,13 @@ children: React.ReactNode
 const router = useRouter()
 const pathname = usePathname()
 
-const [checked,setChecked] = useState(false)
+const [loading,setLoading] = useState(true)
 
 useEffect(()=>{
 
-// se estiver na página de login não verificar
+// não proteger página de login
 if(pathname === "/admin/login"){
-setChecked(true)
+setLoading(false)
 return
 }
 
@@ -27,17 +27,15 @@ localStorage.getItem("admin_logged") ||
 localStorage.getItem("admin_logado")
 
 if(!logado){
-
-router.push("/admin/login")
+router.replace("/admin/login")
 return
-
 }
 
-setChecked(true)
+setLoading(false)
 
 },[pathname,router])
 
-if(!checked){
+if(loading){
 
 return(
 <div className="min-h-screen flex items-center justify-center text-gray-500">
