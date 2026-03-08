@@ -11,6 +11,10 @@ const router = useRouter()
 
 const codigo = Array.isArray(params.codigo) ? params.codigo[0] : params.codigo ?? ""
 
+/* NORMALIZAR CÓDIGO */
+
+const codigoLimpo = codigo.trim().toUpperCase()
+
 const [registro,setRegistro] = useState<any>(null)
 const [cargando,setCargando] = useState(true)
 const [noEncontrado,setNoEncontrado] = useState(false)
@@ -27,7 +31,7 @@ const loginTime = localStorage.getItem("clinica_login_time")
 
 if(!clinica || !loginTime){
 
-sessionStorage.setItem("paciente_redirect",codigo)
+sessionStorage.setItem("paciente_redirect",codigoLimpo)
 router.push("/clinica/login")
 return
 
@@ -42,12 +46,12 @@ localStorage.removeItem("clinica_id")
 localStorage.removeItem("clinica_zona")
 localStorage.removeItem("clinica_login_time")
 
-sessionStorage.setItem("paciente_redirect",codigo)
+sessionStorage.setItem("paciente_redirect",codigoLimpo)
 router.push("/clinica/login")
 
 }
 
-},[codigo,router])
+},[codigoLimpo,router])
 
 
 /* CARGAR PACIENTE */
@@ -59,7 +63,7 @@ setCargando(true)
 const { data,error } = await supabase
 .from("registros")
 .select("*")
-.eq("codigo",codigo)
+.ilike("codigo",codigoLimpo)
 .single()
 
 if(error){
@@ -121,7 +125,7 @@ const { error } = await supabase
 estado_clinica:"Apto",
 fecha_cirugia_realizada:new Date()
 })
-.eq("codigo",codigo)
+.eq("codigo",codigoLimpo)
 
 if(error){
 alert("Error actualizando registro")
@@ -129,8 +133,6 @@ return
 }
 
 alert("Paciente marcado como APTO")
-
-/* ACTUALIZA CONTADOR AUTOMÁTICO */
 
 localStorage.setItem("rugimos_update_resumen", Date.now().toString())
 
@@ -158,7 +160,7 @@ const { error } = await supabase
 estado_clinica:"Rechazado",
 motivo_no_apto:motivo
 })
-.eq("codigo",codigo)
+.eq("codigo",codigoLimpo)
 
 if(error){
 alert("Error actualizando registro")
@@ -192,7 +194,7 @@ estado_clinica:"Reprogramado",
 motivo_no_apto:motivo,
 fecha_reprogramacion:new Date()
 })
-.eq("codigo",codigo)
+.eq("codigo",codigoLimpo)
 
 if(error){
 alert("Error actualizando registro")
