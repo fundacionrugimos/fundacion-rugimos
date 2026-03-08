@@ -8,9 +8,20 @@ export default function LoginClinica(){
 
 const [usuario,setUsuario] = useState("")
 const [senha,setSenha] = useState("")
+const [loading,setLoading] = useState(false)
+
 const router = useRouter()
 
+/* LOGIN */
+
 const login = async () => {
+
+if(!usuario || !senha){
+alert("Ingrese usuario y contraseña")
+return
+}
+
+setLoading(true)
 
 const { data,error } = await supabase
 .from("clinicas")
@@ -18,6 +29,8 @@ const { data,error } = await supabase
 .eq("usuario",usuario)
 .eq("senha",senha)
 .eq("ativa",true)
+
+setLoading(false)
 
 if(error){
 console.log(error)
@@ -39,38 +52,70 @@ router.push("/clinica")
 
 }
 
+/* ENTER PARA LOGIN */
+
+function handleKey(e:any){
+
+if(e.key === "Enter"){
+login()
+}
+
+}
+
+
 return(
 
-<div className="min-h-screen flex items-center justify-center bg-[#026A6A]">
+<div className="min-h-screen flex flex-col items-center justify-center bg-[#0F6D6A] px-6">
 
-<div className="bg-white p-8 rounded-xl shadow w-96">
 
-<h1 className="text-2xl font-bold mb-6 text-center text-[#026A6A]">
+{/* LOGO */}
+
+<img 
+src="/logo.png"
+className="w-56 mb-10"
+/>
+
+
+{/* CARD LOGIN */}
+
+<div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-md">
+
+
+<h1 className="text-2xl font-bold mb-8 text-center text-[#0F6D6A]">
 Login Clínica
 </h1>
+
 
 <input
 type="text"
 placeholder="Usuario"
 value={usuario}
 onChange={(e)=>setUsuario(e.target.value)}
-className="w-full border p-3 rounded mb-4"
+onKeyDown={handleKey}
+className="w-full border p-3 rounded-lg mb-4 outline-none"
 />
+
 
 <input
 type="password"
 placeholder="Contraseña"
 value={senha}
 onChange={(e)=>setSenha(e.target.value)}
-className="w-full border p-3 rounded mb-6"
+onKeyDown={handleKey}
+className="w-full border p-3 rounded-lg mb-6 outline-none"
 />
+
 
 <button
 onClick={login}
-className="w-full bg-[#F47C2A] text-white py-3 rounded-lg hover:opacity-90"
+disabled={loading}
+className="w-full bg-[#F47C2A] text-white py-3 rounded-lg hover:opacity-90 font-semibold"
 >
-Entrar
+
+{loading ? "Entrando..." : "Entrar"}
+
 </button>
+
 
 </div>
 
