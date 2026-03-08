@@ -21,29 +21,31 @@ const url = URL.createObjectURL(file)
 setPreview(url)
 }
 
-async function generarCodigoRG(){
+async function generarCodigoRG() {
 
-const {data} = await supabase
-.from("solicitudes")
-.select("codigo")
+  const { data } = await supabase
+    .from("solicitudes")
+    .select("codigo")
 
-if(!data || data.length === 0) return "RG1"
+  if (!data || data.length === 0) {
+    return "RG1"
+  }
 
-const codigos = data
-.map((r:any)=>r.codigo)
-.filter((c:any)=>c && c.startsWith("RG"))
+  const codigos = data
+    .map((r: any) => r.codigo)
+    .filter((c: any) => /^RG\d+$/.test(c))
 
-if(codigos.length === 0) return "RG1"
+  if (codigos.length === 0) {
+    return "RG1"
+  }
 
-const numeros = codigos.map((c:any)=>{
-const n = c.replace("RG","")
-return parseInt(n)
-}).filter((n:any)=>!isNaN(n))
+  const numeros = codigos.map((c: any) => {
+    return parseInt(c.replace("RG", ""))
+  })
 
-const mayor = Math.max(...numeros)
+  const mayor = Math.max(...numeros)
 
-return "RG"+(mayor+1)
-
+  return "RG" + (mayor + 1)
 }
 
 const handleSubmit = async (e:any)=>{
@@ -72,7 +74,7 @@ return
 
 try{
 
-const codigoGenerado = await generarCodigoRG()
+const codigoGenerado = solicitud.codigo
 
 const upload = async(file:File,name:string)=>{
 
