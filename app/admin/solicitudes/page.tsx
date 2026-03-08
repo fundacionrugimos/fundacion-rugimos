@@ -261,7 +261,7 @@ const mensaje =
 "Tu solicitud fue APROBADA ✅\n\n"+
 "Código Rugimos:\n"+codigoGenerado+"\n\n"+
 "Mascota:\n"+solicitud.nombre_animal+" ("+solicitud.especie+")\n\n"+
-"Clínica:\n"+clinicaData.nombre+"\n\n"+
+"Clínica:\n"+clinicaData.nome+"\n\n"+
 "Hora de llegada:\n"+horaAsignada+"\n\n"+
 "INSTRUCCIONES\n\n"+
 "• Ayuno comida: 8 horas\n"+
