@@ -12,11 +12,16 @@ const router = useRouter()
 const codigo = Array.isArray(params.codigo) ? params.codigo[0] : params.codigo
 
 const [registro,setRegistro] = useState<any>(null)
+const [cargando,setCargando] = useState(true)
+const [noEncontrado,setNoEncontrado] = useState(false)
+
 const [fotoModal,setFotoModal] = useState<string | null>(null)
 
 /* CARGAR PACIENTE */
 
 async function cargar(){
+
+setCargando(true)
 
 const { data,error } = await supabase
 .from("registros")
@@ -25,13 +30,24 @@ const { data,error } = await supabase
 .single()
 
 if(error){
-console.log("Error cargando registro:",error)
+
+if(error.code === "PGRST116"){
+setNoEncontrado(true)
+}
+
+console.log(error)
+setCargando(false)
 return
 }
 
-if(data){
-setRegistro(data)
+if(!data){
+setNoEncontrado(true)
+setCargando(false)
+return
 }
+
+setRegistro(data)
+setCargando(false)
 
 }
 
@@ -75,7 +91,6 @@ fecha_cirugia_realizada:new Date()
 .eq("codigo",codigo)
 
 if(error){
-console.log(error)
 alert("Error actualizando registro")
 return
 }
@@ -109,7 +124,6 @@ motivo_no_apto:motivo
 .eq("codigo",codigo)
 
 if(error){
-console.log(error)
 alert("Error actualizando registro")
 return
 }
@@ -144,7 +158,6 @@ fecha_reprogramacion:new Date()
 .eq("codigo",codigo)
 
 if(error){
-console.log(error)
 alert("Error actualizando registro")
 return
 }
@@ -179,11 +192,35 @@ return "bg-gray-400"
 
 /* CARGANDO */
 
-if(!registro){
+if(cargando){
 
 return(
 <div className="min-h-screen flex items-center justify-center bg-[#0F6D6A] text-white text-xl">
 Cargando paciente...
+</div>
+)
+
+}
+
+
+/* CODIGO NO ENCONTRADO */
+
+if(noEncontrado){
+
+return(
+<div className="min-h-screen flex flex-col items-center justify-center bg-[#0F6D6A] text-white gap-6">
+
+<h1 className="text-3xl font-bold">
+Código no encontrado
+</h1>
+
+<button
+onClick={()=>router.push("/clinica")}
+className="bg-orange-500 hover:bg-orange-600 px-6 py-3 rounded-xl font-bold"
+>
+Volver
+</button>
+
 </div>
 )
 
@@ -280,17 +317,17 @@ Datos de la Cirugía
 
 <div className="bg-white rounded-2xl shadow-xl p-6">
 
-<h2 className="text-xl font-bold text-[#0F6D6A] mb-4">
+<h2 className="text-xl font-bold text-[#0F6D6A] mb-6 text-center">
 Fotos del Registro
 </h2>
 
-<div className="flex gap-4 flex-wrap">
+<div className="flex justify-center gap-6 flex-wrap">
 
 {registro.foto_frente && (
 <img
 src={registro.foto_frente}
 onClick={()=>setFotoModal(registro.foto_frente)}
-className="w-36 h-36 object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition"
+className="w-40 h-40 object-cover rounded-xl shadow-md cursor-pointer hover:scale-105 transition"
 />
 )}
 
@@ -298,7 +335,7 @@ className="w-36 h-36 object-cover rounded-lg shadow-md cursor-pointer hover:scal
 <img
 src={registro.foto_lado}
 onClick={()=>setFotoModal(registro.foto_lado)}
-className="w-36 h-36 object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition"
+className="w-40 h-40 object-cover rounded-xl shadow-md cursor-pointer hover:scale-105 transition"
 />
 )}
 
@@ -306,7 +343,7 @@ className="w-36 h-36 object-cover rounded-lg shadow-md cursor-pointer hover:scal
 <img
 src={registro.foto_carnet}
 onClick={()=>setFotoModal(registro.foto_carnet)}
-className="w-36 h-36 object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition"
+className="w-40 h-40 object-cover rounded-xl shadow-md cursor-pointer hover:scale-105 transition"
 />
 )}
 
