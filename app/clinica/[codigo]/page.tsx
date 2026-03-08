@@ -4,78 +4,93 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useParams } from "next/navigation"
 
-export default function PacienteClinica() {
+export default function PacienteClinica(){
 
 const params = useParams()
-const codigo = params.codigo
+const codigo = Array.isArray(params.codigo) ? params.codigo[0] : params.codigo
 
-const [registro, setRegistro] = useState<any>(null)
+const [registro,setRegistro] = useState<any>(null)
 
-async function cargar() {
+async function cargar(){
 
-const { data } = await supabase
+const { data,error } = await supabase
 .from("registros")
 .select("*")
-.eq("codigo", codigo)
+.eq("codigo",codigo)
 .single()
 
-if (data) {
+if(data){
 setRegistro(data)
 }
 
 }
 
-useEffect(() => {
+useEffect(()=>{
 cargar()
-}, [])
+},[])
 
-async function marcarApto() {
+async function marcarApto(){
 
-await supabase
+const { error } = await supabase
 .from("registros")
-.update({ estado: "Apto" })
-.eq("codigo", codigo)
+.update({ estado:"Apto" })
+.eq("codigo",codigo)
+
+if(error){
+console.log(error)
+alert("Error actualizando registro")
+return
+}
 
 alert("Paciente marcado como APTO")
 
 }
 
-async function marcarNoApto() {
+async function marcarNoApto(){
 
-await supabase
+const { error } = await supabase
 .from("registros")
-.update({ estado: "No Apto" })
-.eq("codigo", codigo)
+.update({ estado:"No Apto" })
+.eq("codigo",codigo)
+
+if(error){
+console.log(error)
+alert("Error actualizando registro")
+return
+}
 
 alert("Paciente marcado como NO APTO")
 
 }
 
-if (!registro) {
+if(!registro){
 
-return (
-<div className="min-h-screen flex items-center justify-center">
+return(
+<div className="min-h-screen flex items-center justify-center bg-[#0F6D6A] text-white text-xl">
 Cargando paciente...
 </div>
 )
 
 }
 
-return (
+return(
 
 <div className="min-h-screen bg-gray-100 flex items-center justify-center p-8">
 
-<div className="w-full max-w-3xl space-y-6">
+<div className="w-full max-w-4xl space-y-6">
 
-<h1 className="text-3xl font-bold text-center text-gray-800">
+{/* TITULO */}
+
+<h1 className="text-3xl font-bold text-center text-[#0F6D6A]">
 Paciente {registro.codigo}
 </h1>
 
+
 {/* RESPONSABLE */}
 
-<div className="bg-white rounded-xl shadow-md p-6">
+<div className="bg-white rounded-2xl shadow-lg p-6">
 
-<h2 className="text-xl font-semibold text-[#026A6A] mb-4">
+<h2 className="text-xl font-bold text-[#0F6D6A] mb-4">
 Datos del Responsable
 </h2>
 
@@ -90,11 +105,12 @@ Datos del Responsable
 
 </div>
 
+
 {/* ANIMAL */}
 
-<div className="bg-white rounded-xl shadow-md p-6">
+<div className="bg-white rounded-2xl shadow-lg p-6">
 
-<h2 className="text-xl font-semibold text-[#026A6A] mb-4">
+<h2 className="text-xl font-bold text-[#0F6D6A] mb-4">
 Datos del Animal
 </h2>
 
@@ -111,60 +127,63 @@ Datos del Animal
 
 </div>
 
+
 {/* CIRUGIA */}
 
-<div className="bg-white rounded-xl shadow-md p-6">
+<div className="bg-white rounded-2xl shadow-lg p-6">
 
-<h2 className="text-xl font-semibold text-[#026A6A] mb-4">
+<h2 className="text-xl font-bold text-[#0F6D6A] mb-4">
 Datos de la Cirugía
 </h2>
 
-<p className="text-gray-700">
+<p className="text-gray-700 text-lg">
 <b>Hora asignada:</b> {registro.hora || "No asignada"}
 </p>
 
 </div>
 
+
 {/* FOTOS */}
 
-<div className="bg-white rounded-xl shadow-md p-6">
+<div className="bg-white rounded-2xl shadow-lg p-6">
 
-<h2 className="text-xl font-semibold text-[#026A6A] mb-4">
+<h2 className="text-xl font-bold text-[#0F6D6A] mb-4">
 Fotos del Registro
 </h2>
 
-<div className="flex gap-4">
+<div className="flex gap-4 flex-wrap">
 
 {registro.foto_frente && (
-<img src={registro.foto_frente} className="w-32 h-32 object-cover rounded-lg shadow"/>
+<img src={registro.foto_frente} className="w-36 h-36 object-cover rounded-lg shadow-md"/>
 )}
 
 {registro.foto_lado && (
-<img src={registro.foto_lado} className="w-32 h-32 object-cover rounded-lg shadow"/>
+<img src={registro.foto_lado} className="w-36 h-36 object-cover rounded-lg shadow-md"/>
 )}
 
 {registro.foto_carnet && (
-<img src={registro.foto_carnet} className="w-32 h-32 object-cover rounded-lg shadow"/>
+<img src={registro.foto_carnet} className="w-36 h-36 object-cover rounded-lg shadow-md"/>
 )}
 
 </div>
 
 </div>
 
+
 {/* BOTONES */}
 
-<div className="flex justify-center gap-6 pt-4">
+<div className="flex justify-center gap-8 pt-6">
 
 <button
 onClick={marcarApto}
-className="bg-green-600 hover:bg-green-700 text-white px-10 py-3 rounded-xl font-semibold text-lg shadow"
+className="bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-xl font-bold text-lg shadow-md"
 >
 APTO
 </button>
 
 <button
 onClick={marcarNoApto}
-className="bg-red-600 hover:bg-red-700 text-white px-10 py-3 rounded-xl font-semibold text-lg shadow"
+className="bg-red-600 hover:bg-red-700 text-white px-12 py-4 rounded-xl font-bold text-lg shadow-md"
 >
 NO APTO
 </button>
