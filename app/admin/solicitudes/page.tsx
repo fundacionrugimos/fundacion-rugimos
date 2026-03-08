@@ -99,23 +99,27 @@ const generarCodigoRG = async()=>{
 const {data} = await supabase
 .from("registros")
 .select("codigo")
-.order("id",{ascending:false})
-.limit(1)
-.single()
 
-let numero = 1
-
-if(data?.codigo){
-
-const match = data.codigo.match(/\d+/)
-
-if(match){
-numero = parseInt(match[0]) + 1
+if(!data || data.length === 0){
+return "RG1"
 }
 
+const codigosRG = data
+.map(r => r.codigo)
+.filter(c => c && c.startsWith("RG"))
+
+if(codigosRG.length === 0){
+return "RG1"
 }
 
-return "RG"+numero
+const numeros = codigosRG.map(c=>{
+const n = c.replace("RG","")
+return parseInt(n)
+}).filter(n=>!isNaN(n))
+
+const mayor = Math.max(...numeros)
+
+return "RG"+(mayor+1)
 
 }
 
