@@ -74,7 +74,7 @@ return
 
 try{
 
-const codigoGenerado = solicitud.codigo
+const codigoGenerado = await generarCodigoRG()
 
 const upload = async(file:File,name:string)=>{
 
