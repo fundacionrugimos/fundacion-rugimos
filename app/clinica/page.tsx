@@ -180,6 +180,27 @@ cargarResumen()
 },[])
 
 
+/* ATUALIZA AUTOMATICAMENTE O CONTADOR */
+
+useEffect(()=>{
+
+function actualizarResumen(){
+
+cargarResumen()
+
+}
+
+window.addEventListener("storage",actualizarResumen)
+
+return ()=>{
+
+window.removeEventListener("storage",actualizarResumen)
+
+}
+
+},[])
+
+
 const total =
 resumen.perro_macho +
 resumen.perra_hembra +
@@ -234,7 +255,7 @@ value={codigo}
 onChange={(e)=>setCodigo(e.target.value)}
 onKeyDown={handleKey}
 placeholder="Ingresar código RG"
-className="flex-1 px-8 py-5 text-lg text-gray-800 placeholder-gray-500 outline-none"
+className="flex-1 px-8 py-5 text-lg text-gray-800 placeholder-gray-500 outline-none focus:ring-2 focus:ring-[#0f6d6a]"
 />
 
 <button
