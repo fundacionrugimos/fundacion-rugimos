@@ -140,7 +140,8 @@ return
 
 if(nuevoEstado === "Aprobado"){
 
-const codigoGenerado = await generarCodigoRG()
+// 🔴 ESTA ES LA ÚNICA LÍNEA CAMBIADA
+const codigoGenerado = solicitud.codigo
 
 const {data:clinicas,error:clinicaError} = await supabase
 .from("clinicas")
@@ -226,10 +227,6 @@ const { data: horario } = await supabase
 const horaAsignada = horario?.hora
 
 const qr = await generarQR(codigoGenerado)
-
-await supabase.from("solicitudes")
-.update({codigo:codigoGenerado})
-.eq("id",solicitud.id)
 
 await supabase.from("registros").insert([{
 
