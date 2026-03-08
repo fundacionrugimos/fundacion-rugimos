@@ -1,24 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 
 export default function AdminDashboard() {
 
-const router = useRouter()
-
 const [pendentes,setPendentes] = useState(0)
 
 useEffect(()=>{
-
-const admin = localStorage.getItem("admin_logado")
-
-if(!admin){
-router.push("/admin/login")
-return
-}
 
 carregarPendentes()
 
@@ -35,26 +25,9 @@ if(data) setPendentes(data.length)
 
 }
 
-const cerrarSesion = () => {
-
-localStorage.removeItem("admin_logado")
-
-router.push("/admin/login")
-
-}
-
 return(
 
 <div className="min-h-screen bg-[#02686A] flex flex-col items-center">
-
-<div className="w-full flex justify-end p-6">
-<button
-onClick={cerrarSesion}
-className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90"
->
-Cerrar sesión
-</button>
-</div>
 
 <div className="mt-10 mb-20 flex justify-center">
 <img src="/logo.png" className="h-40"/>
@@ -106,8 +79,6 @@ Sin pendientes
 <p className="text-gray-600 mt-2">Cupos por clínica</p>
 </div>
 </Link>
-
-{/* NUEVO BOTÓN PAGOS CLÍNICAS */}
 
 <Link href="/admin/pagos">
 <div className="bg-white rounded-2xl shadow-xl p-8 hover:scale-105 cursor-pointer">
