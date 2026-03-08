@@ -11,6 +11,8 @@ const codigo = Array.isArray(params.codigo) ? params.codigo[0] : params.codigo
 
 const [registro,setRegistro] = useState<any>(null)
 
+/* CARGAR PACIENTE */
+
 async function cargar(){
 
 const { data,error } = await supabase
@@ -41,11 +43,13 @@ cargar()
 
 async function marcarApto(){
 
-const { data,error } = await supabase
+const { error } = await supabase
 .from("registros")
-.update({ estado:"Apto" })
+.update({
+estado_clinica:"Apto",
+fecha_cirugia_realizada:new Date()
+})
 .eq("codigo",codigo)
-.select()
 
 if(error){
 console.log(error)
@@ -53,7 +57,7 @@ alert("Error actualizando registro")
 return
 }
 
-alert("Paciente marcado como APTO")
+alert("Paciente marcado como APTO y cirugía registrada")
 
 cargar()
 
@@ -64,11 +68,20 @@ cargar()
 
 async function marcarNoApto(){
 
-const { data,error } = await supabase
+const motivo = prompt("Motivo do NO APTO:")
+
+if(!motivo){
+alert("Debe ingresar un motivo")
+return
+}
+
+const { error } = await supabase
 .from("registros")
-.update({ estado:"No Apto" })
+.update({
+estado_clinica:"Rechazado",
+motivo_no_apto:motivo
+})
 .eq("codigo",codigo)
-.select()
 
 if(error){
 console.log(error)
@@ -77,6 +90,38 @@ return
 }
 
 alert("Paciente marcado como NO APTO")
+
+cargar()
+
+}
+
+
+/* REPROGRAMAR */
+
+async function reprogramar(){
+
+const motivo = prompt("Motivo da reprogramação:")
+
+if(!motivo){
+alert("Debe ingresar un motivo")
+return
+}
+
+const { error } = await supabase
+.from("registros")
+.update({
+estado_clinica:"Reprogramado",
+motivo_no_apto:motivo
+})
+.eq("codigo",codigo)
+
+if(error){
+console.log(error)
+alert("Error actualizando registro")
+return
+}
+
+alert("Cirugía reprogramada")
 
 cargar()
 
@@ -163,6 +208,10 @@ Datos de la Cirugía
 <b>Hora asignada:</b> {registro.hora || "No asignada"}
 </p>
 
+<p className="text-gray-700 text-lg">
+<b>Estado:</b> {registro.estado_clinica || "Pendiente"}
+</p>
+
 </div>
 
 
@@ -195,20 +244,27 @@ Fotos del Registro
 
 {/* BOTONES */}
 
-<div className="flex justify-center gap-8 pt-6">
+<div className="flex justify-center gap-6 pt-6 flex-wrap">
 
 <button
 onClick={marcarApto}
-className="bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-xl font-bold text-lg shadow-md transition"
+className="bg-green-600 hover:bg-green-700 text-white px-10 py-4 rounded-xl font-bold text-lg shadow-md transition"
 >
 APTO
 </button>
 
 <button
 onClick={marcarNoApto}
-className="bg-red-600 hover:bg-red-700 text-white px-12 py-4 rounded-xl font-bold text-lg shadow-md transition"
+className="bg-red-600 hover:bg-red-700 text-white px-10 py-4 rounded-xl font-bold text-lg shadow-md transition"
 >
 NO APTO
+</button>
+
+<button
+onClick={reprogramar}
+className="bg-yellow-500 hover:bg-yellow-600 text-white px-10 py-4 rounded-xl font-bold text-lg shadow-md transition"
+>
+REPROGRAMAR
 </button>
 
 </div>
