@@ -32,11 +32,18 @@ return
 
 setRegistro(data)
 
-/* GENERAR QR */
+/* GENERAR QR MEJORADO */
 
 const url = `https://fundacion-rugimos.vercel.app/clinica/${codigo}`
 
-const qrImage = await QRCode.toDataURL(url)
+const qrImage = await QRCode.toDataURL(url,{
+width: 400,
+margin: 3,
+color:{
+dark:"#000000",
+light:"#FFFFFF"
+}
+})
 
 setQr(qrImage)
 
@@ -66,7 +73,7 @@ Cargando información...
 }
 
 
-/* NO ENCONTRADO */
+/* CODIGO NO ENCONTRADO */
 
 if(noEncontrado){
 
@@ -89,14 +96,19 @@ return(
 
 <div className="bg-white rounded-3xl shadow-xl max-w-md w-full p-8 text-center space-y-6">
 
+
+{/* LOGO MAYOR */}
+
 <img
 src="/logo.png"
-className="w-48 mx-auto"
+className="w-64 mx-auto"
 />
+
 
 <h1 className="text-2xl font-bold text-[#0F6D6A]">
 Fundación Rugimos
 </h1>
+
 
 <div className="text-gray-700 space-y-2">
 
@@ -114,8 +126,9 @@ Fundación Rugimos
 
 </div>
 
+
 <p className="text-sm text-gray-500">
-Presentar este QR en la clínica
+Mostrar este QR al llegar a la clínica
 </p>
 
 
@@ -123,19 +136,32 @@ Presentar este QR en la clínica
 
 {qr && (
 
+<div className="bg-white p-6 rounded-2xl shadow-lg">
+
 <img
 src={qr}
-className="mx-auto w-72 h-72"
+className="mx-auto w-80 h-80"
 />
+
+</div>
 
 )}
 
 
-<div className="bg-[#f47c2a] text-white py-3 rounded-xl font-bold">
+{/* CODIGO VISUAL */}
+
+<div className="bg-[#f47c2a] text-white py-3 rounded-xl font-bold text-lg">
 
 Código: {registro.codigo}
 
 </div>
+
+
+<p className="text-xs text-gray-400">
+No es necesario imprimir este QR.  
+Puede mostrarlo directamente desde su celular.
+</p>
+
 
 </div>
 
