@@ -66,7 +66,7 @@ window.open(url,"_blank")
 
 async function generarQR(codigo:string){
 
-const url = `https://fundacion-rugimos.vercel.app/clinica/${codigo}`
+const url = `https://fundacion-rugimos.vercel.app/paciente/${codigo}`
 
 const qr = await QRCode.toDataURL(url)
 
