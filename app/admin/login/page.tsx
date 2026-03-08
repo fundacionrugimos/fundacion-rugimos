@@ -14,7 +14,8 @@ const entrar = () => {
 
 if(email === "admin@rugimos.com" && senha === "rugimos123"){
 
-localStorage.setItem("admin_logado","true")
+localStorage.setItem("admin_logged","true")
+localStorage.setItem("admin_login_time", Date.now().toString())
 
 router.push("/admin")
 
