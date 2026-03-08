@@ -264,7 +264,7 @@ const mensaje =
 "Código Rugimos:\n"+codigoGenerado+"\n\n"+
 "Mascota:\n"+solicitud.nombre_animal+" ("+solicitud.especie+")\n\n"+
 "Clínica:\n"+clinicaData.nome+"\n"+
-"Ubicación:\n"+(clinicaData.direccion_clinica || "Ver mapa abajo")+"\n\n"+
+"Ubicación:\n"+clinicaData.direccion_clinica+"\n\n"+
 "📍 Ver en Google Maps:\n"+linkMapa+"\n\n"+
 "Hora de llegada:\n"+horaAsignada+"\n\n"+
 "INSTRUCCIONES\n\n"+
