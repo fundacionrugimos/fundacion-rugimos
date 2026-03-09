@@ -31,6 +31,12 @@ const [loadingId,setLoadingId] = useState<string | null>(null)
 const [fotoSeleccionada,setFotoSeleccionada] = useState<string | null>(null)
 const [whatsappData,setWhatsappData] = useState<{telefono:string,mensaje:string}|null>(null)
 
+const [busqueda,setBusqueda] = useState("")
+const [zonaFiltro,setZonaFiltro] = useState("Todos")
+
+const [pagina,setPagina] = useState(1)
+const porPagina = 50
+
 useEffect(()=>{
 fetchSolicitudes()
 },[])
@@ -52,14 +58,12 @@ if(data) setSolicitudes(data)
 
 }
 
-const enviarWhatsapp = ()=>{
+const enviarWhatsapp = (telefono:string,mensaje:string)=>{
 
-if(!whatsappData) return
+const tel = telefono.replace(/\D/g,"")
+const msg = encodeURIComponent(mensaje)
 
-const telefono = whatsappData.telefono.replace(/\D/g,"")
-const mensaje = encodeURIComponent(whatsappData.mensaje)
-
-const url = "https://wa.me/591"+telefono+"?text="+mensaje
+const url = "https://wa.me/591"+tel+"?text="+msg
 
 window.open(url,"_blank")
 
@@ -92,35 +96,6 @@ Math.sin(dLon/2)
 const c = 2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))
 
 return R*c
-
-}
-
-const generarCodigoRG = async()=>{
-
-const {data} = await supabase
-.from("registros")
-.select("codigo")
-
-if(!data || data.length === 0){
-return "RG1"
-}
-
-const codigosRG = data
-.map(r => r.codigo)
-.filter(c => c && c.startsWith("RG"))
-
-if(codigosRG.length === 0){
-return "RG1"
-}
-
-const numeros = codigosRG.map(c=>{
-const n = c.replace("RG","")
-return parseInt(n)
-}).filter(n=>!isNaN(n))
-
-const mayor = Math.max(...numeros)
-
-return "RG"+(mayor+1)
 
 }
 
@@ -252,10 +227,7 @@ qr_code:qr
 
 }])
 
-/* LINK CORRIGIDO */
-
 const linkQR = "https://fundacion-rugimos.vercel.app/paciente/"+codigoGenerado
-
 const linkMapa = "https://www.google.com/maps?q="+clinicaData.lat+","+clinicaData.lng
 
 const mensaje =
@@ -277,10 +249,7 @@ const mensaje =
 linkQR+"\n\n"+
 "Gracias por apoyar la esterilización responsable 💚"
 
-setWhatsappData({
-telefono:solicitud.celular,
-mensaje:mensaje
-})
+enviarWhatsapp(solicitud.celular,mensaje)
 
 }
 
@@ -289,98 +258,132 @@ setLoadingId(null)
 
 }
 
+/* FILTROS */
+
+const filtradas = solicitudes.filter(s=>{
+
+const nombre = s.nombre_completo.toLowerCase()
+const buscar = busqueda.toLowerCase()
+
+const coincideNombre = nombre.includes(buscar)
+
+const coincideZona =
+zonaFiltro==="Todos" ||
+s.ubicacion===zonaFiltro
+
+return coincideNombre && coincideZona
+
+})
+
+/* PAGINACIÓN */
+
+const inicio = (pagina-1)*porPagina
+const fin = inicio+porPagina
+
+const visibles = filtradas.slice(inicio,fin)
+
+const totalPaginas = Math.ceil(filtradas.length/porPagina)
+
 return(
 
 <div className="min-h-screen bg-gray-100 p-6">
 
-<h1 className="text-3xl font-bold mb-8 text-gray-900">
+<h1 className="text-3xl font-bold mb-6 text-gray-900">
 Solicitudes Recibidas
 </h1>
 
-{whatsappData && (
+{/* FILTROS */}
 
-<div className="bg-green-100 border border-green-300 p-4 rounded-lg mb-6 flex justify-between items-center">
+<div className="flex gap-4 mb-6 flex-wrap">
 
-<p className="text-green-900 font-semibold">
-Registro aprobado. Enviar confirmación por WhatsApp.
-</p>
+<input
+placeholder="Buscar por nombre..."
+value={busqueda}
+onChange={e=>setBusqueda(e.target.value)}
+className="border p-2 rounded-lg"
+/>
 
-<button
-onClick={enviarWhatsapp}
-className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
->
-Enviar WhatsApp
-</button>
+<select
+value={zonaFiltro}
+onChange={e=>setZonaFiltro(e.target.value)}
+className="border p-2 rounded-lg">
+
+<option value="Todos">Todas las zonas</option>
+<option>Norte</option>
+<option>Sur</option>
+<option>Este</option>
+<option>Oeste</option>
+<option>Centro</option>
+<option>Plan 3000</option>
+<option>Pampa de la Isla</option>
+
+</select>
 
 </div>
 
-)}
+{/* GRID */}
 
-<div className="flex flex-col items-center gap-8">
+<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
 
-{solicitudes.map((s)=>(
+{visibles.map((s)=>(
 
 <div key={s.id}
-className="bg-white rounded-2xl shadow-md p-6 border border-gray-200 max-w-xl w-full">
+className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
 
-<p className="text-xs text-gray-500 mb-2 font-mono">{s.codigo}</p>
+<p className="text-xs text-gray-500 mb-1 font-mono">{s.codigo}</p>
 
-<h2 className="text-xl font-semibold text-gray-900 mb-3">
+<h2 className="text-sm font-semibold text-gray-900 mb-2">
 {s.nombre_completo}
 </h2>
 
-<div className="text-sm text-gray-700 space-y-1">
+<div className="text-xs text-gray-700 space-y-1">
 
-<p><strong>CI:</strong> {s.ci||"No especificado"}</p>
-<p><strong>Celular:</strong> {s.celular}</p>
 <p><strong>Zona:</strong> {s.ubicacion}</p>
-<p><strong>Animal:</strong> {s.nombre_animal} ({s.especie})</p>
+<p><strong>Animal:</strong> {s.nombre_animal}</p>
 <p><strong>Sexo:</strong> {s.sexo}</p>
-<p><strong>Edad:</strong> {s.edad}</p>
-<p><strong>Peso:</strong> {s.peso}</p>
 
 </div>
 
-<div className="flex gap-3 mt-4">
+<div className="flex gap-2 mt-3">
 
 {s.foto_frente &&(
 <img src={s.foto_frente}
-className="w-24 h-24 object-cover rounded-lg border cursor-pointer"
+className="w-16 h-16 object-cover rounded cursor-pointer"
 onClick={()=>setFotoSeleccionada(s.foto_frente)}
 />
 )}
 
 {s.foto_lado &&(
 <img src={s.foto_lado}
-className="w-24 h-24 object-cover rounded-lg border cursor-pointer"
+className="w-16 h-16 object-cover rounded cursor-pointer"
 onClick={()=>setFotoSeleccionada(s.foto_lado)}
 />
 )}
 
 {s.foto_carnet &&(
 <img src={s.foto_carnet}
-className="w-24 h-24 object-cover rounded-lg border cursor-pointer"
+className="w-16 h-16 object-cover rounded cursor-pointer"
 onClick={()=>setFotoSeleccionada(s.foto_carnet)}
 />
 )}
 
 </div>
 
-<div className="flex gap-3 mt-6">
+<div className="flex gap-2 mt-4">
 
 <button
 disabled={loadingId===s.id}
 onClick={()=>cambiarEstado(s,"Aprobado")}
-className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50">
+className="flex-1 bg-green-600 text-white py-2 rounded text-xs">
 
-{loadingId===s.id?"Procesando":"Aprobar"}
+Aprobar
 
 </button>
 
 <button
 disabled={loadingId===s.id}
 onClick={()=>cambiarEstado(s,"Rechazado")}
-className="flex-1 bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50">
+className="flex-1 bg-red-600 text-white py-2 rounded text-xs">
 
 Rechazar
 
@@ -391,6 +394,34 @@ Rechazar
 </div>
 
 ))}
+
+</div>
+
+{/* PAGINACIÓN */}
+
+<div className="flex justify-center gap-4 mt-10">
+
+<button
+disabled={pagina===1}
+onClick={()=>setPagina(p=>p-1)}
+className="px-4 py-2 bg-gray-300 rounded">
+
+Anterior
+
+</button>
+
+<p className="font-semibold">
+Página {pagina} de {totalPaginas}
+</p>
+
+<button
+disabled={pagina===totalPaginas}
+onClick={()=>setPagina(p=>p+1)}
+className="px-4 py-2 bg-gray-300 rounded">
+
+Siguiente
+
+</button>
 
 </div>
 
