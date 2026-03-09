@@ -340,6 +340,7 @@ className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
 
 <p><strong>Zona:</strong> {s.ubicacion}</p>
 <p><strong>Animal:</strong> {s.nombre_animal}</p>
+<p><strong>Especie:</strong> {s.especie}</p>
 <p><strong>Sexo:</strong> {s.sexo}</p>
 <p><strong>Tipo:</strong> {s.tipo_animal}</p>
 
@@ -348,23 +349,11 @@ className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
 <div className="flex gap-2 mt-3">
 
 {s.foto_frente &&(
-<img src={s.foto_frente}
-className="w-16 h-16 object-cover rounded cursor-pointer"
+<img
+src={s.foto_frente + "?width=200"}
+loading="lazy"
+className="w-20 h-20 object-cover rounded cursor-pointer"
 onClick={()=>setFotoSeleccionada(s.foto_frente)}
-/>
-)}
-
-{s.foto_lado &&(
-<img src={s.foto_lado}
-className="w-16 h-16 object-cover rounded cursor-pointer"
-onClick={()=>setFotoSeleccionada(s.foto_lado)}
-/>
-)}
-
-{s.foto_carnet &&(
-<img src={s.foto_carnet}
-className="w-16 h-16 object-cover rounded cursor-pointer"
-onClick={()=>setFotoSeleccionada(s.foto_carnet)}
 />
 )}
 
@@ -433,10 +422,14 @@ className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center
 onClick={()=>setFotoSeleccionada(null)}
 >
 
+<div className="flex gap-4">
+
 <img
 src={fotoSeleccionada}
-className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-xl"
+className="max-h-[80vh] max-w-[30vw] rounded-xl shadow-xl"
 />
+
+</div>
 
 </div>
 
