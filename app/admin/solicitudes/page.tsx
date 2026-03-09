@@ -63,7 +63,7 @@ const enviarWhatsapp = (telefono:string,mensaje:string)=>{
 const tel = telefono.replace(/\D/g,"")
 const msg = encodeURIComponent(mensaje)
 
-const url = "https://wa.me/591"+tel+"?text="+msg
+const url = "https://api.whatsapp.com/send?phone=591"+telefono+"&text="+mensaje
 
 window.open(url,"_blank")
 
