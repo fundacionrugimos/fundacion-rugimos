@@ -35,7 +35,7 @@ const [busqueda,setBusqueda] = useState("")
 const [zonaFiltro,setZonaFiltro] = useState("Todos")
 
 const [pagina,setPagina] = useState(1)
-const porPagina = 50
+const porPagina = 10
 
 useEffect(()=>{
 fetchSolicitudes()
@@ -47,7 +47,7 @@ const {data,error} = await supabase
 .from("solicitudes")
 .select("*")
 .eq("estado","Pendiente")
-.order("created_at",{ascending:false})
+.order("created_at",{ascending:true})
 
 if(error){
 console.error(error)
@@ -341,6 +341,7 @@ className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
 <p><strong>Zona:</strong> {s.ubicacion}</p>
 <p><strong>Animal:</strong> {s.nombre_animal}</p>
 <p><strong>Sexo:</strong> {s.sexo}</p>
+<p><strong>Tipo:</strong> {s.tipo_animal}</p>
 
 </div>
 
