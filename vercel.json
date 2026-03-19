@@ -1,16 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/admin/no-show",
-      "schedule": "10 4 * * *"
-    },
-    {
-      "path": "/api/reminder-24h",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/post-cirugia",
-      "schedule": "30 10 * * *"
+      "path": "/api/daily-jobs",
+      "schedule": "0 9 * * *"
     }
   ]
 }

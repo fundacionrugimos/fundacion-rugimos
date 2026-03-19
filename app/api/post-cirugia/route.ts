@@ -3,14 +3,13 @@ import { supabase } from "@/lib/supabase"
 
 export async function GET() {
   try {
-
     const ayerInicio = new Date()
     ayerInicio.setDate(ayerInicio.getDate() - 1)
-    ayerInicio.setHours(0,0,0,0)
+    ayerInicio.setHours(0, 0, 0, 0)
 
     const ayerFin = new Date()
     ayerFin.setDate(ayerFin.getDate() - 1)
-    ayerFin.setHours(23,59,59,999)
+    ayerFin.setHours(23, 59, 59, 999)
 
     const { data: pacientes, error } = await supabase
       .from("registros")
@@ -21,22 +20,26 @@ export async function GET() {
         telefono,
         fecha_cirugia_realizada,
         estado_cita,
+        estado_clinica,
         agradecimiento_enviado
       `)
       .gte("fecha_cirugia_realizada", ayerInicio.toISOString())
       .lte("fecha_cirugia_realizada", ayerFin.toISOString())
-      .eq("estado_cita", "apto")
+      .eq("estado_clinica", "apto")
+      .neq("estado_cita", "fallecido")
       .eq("agradecimiento_enviado", false)
 
     if (error) {
-      console.log(error)
-      return NextResponse.json({ ok: false, error: error.message })
+      console.log("Error buscando post-cirugia:", error)
+      return NextResponse.json(
+        { ok: false, error: error.message },
+        { status: 500 }
+      )
     }
 
     let enviados = 0
 
     for (const paciente of pacientes || []) {
-
       const linkDonacion = "https://fundacion-rugimos.vercel.app/donar"
 
       const resp = await fetch(
@@ -44,7 +47,7 @@ export async function GET() {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             telefono: paciente.telefono,
@@ -52,9 +55,9 @@ export async function GET() {
             variables: {
               "1": paciente.nombre_animal,
               "2": paciente.codigo,
-              "3": linkDonacion
-            }
-          })
+              "3": linkDonacion,
+            },
+          }),
         }
       )
 
@@ -65,13 +68,18 @@ export async function GET() {
           .eq("id", paciente.id)
 
         enviados++
+      } else {
+        const txt = await resp.text()
+        console.log("Error enviando agradecimiento:", txt)
       }
     }
 
     return NextResponse.json({ ok: true, enviados })
-
   } catch (err) {
-    console.log(err)
-    return NextResponse.json({ ok: false, error: "error interno" })
+    console.log("Error interno post-cirugia:", err)
+    return NextResponse.json(
+      { ok: false, error: "error interno" },
+      { status: 500 }
+    )
   }
 }
