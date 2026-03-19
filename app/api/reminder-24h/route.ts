@@ -18,14 +18,12 @@ export async function GET() {
         codigo,
         nombre_animal,
         telefono,
+        clinica_id,
         fecha_programada,
         hora,
         estado_cita,
-        recordatorio_24h_enviado,
-        clinicas (
-          nombre,
-          endereco
-        )
+        estado_clinica,
+        recordatorio_24h_enviado
       `)
       .gte("fecha_programada", mananaInicio.toISOString())
       .lte("fecha_programada", mananaFin.toISOString())
@@ -33,19 +31,31 @@ export async function GET() {
       .eq("recordatorio_24h_enviado", false)
 
     if (error) {
-      console.log("Error buscando pacientes:", error)
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
+      console.log("Error buscando pacientes reminder:", error)
+      return NextResponse.json(
+        { ok: false, error: error.message },
+        { status: 500 }
+      )
     }
 
     let enviados = 0
 
     for (const paciente of pacientes || []) {
-      const clinica = Array.isArray(paciente.clinicas)
-        ? paciente.clinicas[0]
-        : paciente.clinicas
+      let nombreClinica = "Clínica asignada"
+      let direccionClinica = ""
 
-      const nombreClinica = clinica?.nombre || "Clínica asignada"
-      const direccionClinica = clinica?.endereco || ""
+      if (paciente.clinica_id) {
+        const { data: clinica } = await supabase
+          .from("clinicas")
+          .select("nome,endereco")
+          .eq("id", paciente.clinica_id)
+          .single()
+
+        if (clinica) {
+          nombreClinica = clinica.nome || "Clínica asignada"
+          direccionClinica = clinica.endereco || ""
+        }
+      }
 
       const mapsLink = direccionClinica
         ? `https://www.google.com/maps?q=${encodeURIComponent(direccionClinica)}`
@@ -93,6 +103,9 @@ export async function GET() {
     return NextResponse.json({ ok: true, enviados })
   } catch (err) {
     console.log("Error interno reminder-24h:", err)
-    return NextResponse.json({ ok: false, error: "error interno" }, { status: 500 })
+    return NextResponse.json(
+      { ok: false, error: "error interno" },
+      { status: 500 }
+    )
   }
 }
