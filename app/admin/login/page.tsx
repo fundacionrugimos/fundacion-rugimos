@@ -5,78 +5,104 @@ import { useRouter } from "next/navigation"
 
 export default function LoginAdmin() {
 
-const router = useRouter()
+  const router = useRouter()
 
-const [email,setEmail] = useState("")
-const [senha,setSenha] = useState("")
+  const [email,setEmail] = useState("")
+  const [password,setPassword] = useState("")
+  const [loading,setLoading] = useState(false)
+  const [error,setError] = useState("")
 
-const entrar = () => {
+  const handleLogin = async (e:React.FormEvent) => {
 
-if(email === "admin@rugimos.com" && senha === "rugimos123"){
+    e.preventDefault()
 
-localStorage.setItem("admin_logged","true")
+    setLoading(true)
+    setError("")
 
-router.replace("/admin")
+    try{
 
-}else{
+      const res = await fetch("/api/admin/login",{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+          email,
+          password
+        })
+      })
 
-alert("Usuario o contraseña incorrectos")
+      const data = await res.json()
 
-}
+      if(!res.ok){
+        setError(data.error || "Error al iniciar sesión")
+        setLoading(false)
+        return
+      }
 
-}
+      router.push("/admin")
+      router.refresh()
 
-return(
+    }catch{
 
-<div className="min-h-screen bg-[#0f6a63] flex items-center justify-center">
+      setError("Error de conexión")
 
-<div className="bg-white p-8 rounded-2xl shadow-lg w-[350px]">
+    }finally{
+      setLoading(false)
+    }
 
-<div className="text-center mb-6">
+  }
 
-<img
-src="/logo.png"
-className="w-40 mx-auto mb-4"
-/>
+  return(
 
-<h1 className="text-xl font-bold">
-Login Administrador
-</h1>
+    <div className="min-h-screen bg-[#02686A] flex items-center justify-center">
 
-<p className="text-gray-500 text-sm">
-Acceso al panel administrativo
-</p>
+      <div className="bg-white p-8 rounded-2xl shadow-xl w-[350px]">
 
-</div>
+        <h1 className="text-2xl font-bold text-center text-[#02686A] mb-6">
+          Admin Rugimos
+        </h1>
 
-<input
-placeholder="Email"
-value={email}
-onChange={(e)=>setEmail(e.target.value)}
-className="border p-3 rounded-lg w-full mb-4"
-/>
+        <form onSubmit={handleLogin} className="flex flex-col gap-4">
 
-<input
-type="password"
-placeholder="Contraseña"
-value={senha}
-onChange={(e)=>setSenha(e.target.value)}
-className="border p-3 rounded-lg w-full mb-4"
-/>
+          <input
+          type="email"
+          placeholder="Correo"
+          value={email}
+          onChange={(e)=>setEmail(e.target.value)}
+          className="border p-3 rounded-lg"
+          required
+          />
 
-<button
-onClick={entrar}
-className="bg-[#f47c3c] text-white w-full py-3 rounded-lg font-bold hover:opacity-90"
->
+          <input
+          type="password"
+          placeholder="Contraseña"
+          value={password}
+          onChange={(e)=>setPassword(e.target.value)}
+          className="border p-3 rounded-lg"
+          required
+          />
 
-Entrar
+          {error && (
+            <div className="text-red-600 text-sm">
+              {error}
+            </div>
+          )}
 
-</button>
+          <button
+          type="submit"
+          disabled={loading}
+          className="bg-[#02686A] text-white p-3 rounded-lg font-semibold"
+          >
+            {loading ? "Entrando..." : "Entrar"}
+          </button>
 
-</div>
+        </form>
 
-</div>
+      </div>
 
-)
+    </div>
+
+  )
 
 }
