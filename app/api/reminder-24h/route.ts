@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
 
+function getLocalDateString(offsetDays = 0) {
+  const now = new Date()
+  now.setDate(now.getDate() + offsetDays)
+
+  const offset = now.getTimezoneOffset()
+  const local = new Date(now.getTime() - offset * 60 * 1000)
+
+  return local.toISOString().split("T")[0]
+}
+
 export async function GET() {
   try {
-    const mananaInicio = new Date()
-    mananaInicio.setDate(mananaInicio.getDate() + 1)
-    mananaInicio.setHours(0, 0, 0, 0)
-
-    const mananaFin = new Date()
-    mananaFin.setDate(mananaFin.getDate() + 1)
-    mananaFin.setHours(23, 59, 59, 999)
+    const manana = getLocalDateString(1)
 
     const { data: pacientes, error } = await supabase
       .from("registros")
@@ -25,9 +29,8 @@ export async function GET() {
         estado_clinica,
         recordatorio_24h_enviado
       `)
-      .gte("fecha_programada", mananaInicio.toISOString())
-      .lte("fecha_programada", mananaFin.toISOString())
-      .eq("estado_cita", "programado")
+      .eq("fecha_programada", manana)
+      .eq("estado_cita", "Programado")
       .eq("recordatorio_24h_enviado", false)
 
     if (error) {
@@ -39,68 +42,115 @@ export async function GET() {
     }
 
     let enviados = 0
+    let errores = 0
 
     for (const paciente of pacientes || []) {
-      let nombreClinica = "Clínica asignada"
-      let direccionClinica = ""
+      try {
+        let nombreClinica = "Clínica asignada"
+        let direccionClinica = ""
+        let telefonoClinica = ""
+        let latClinica: number | null = null
+        let lngClinica: number | null = null
+        let urlMapsClinica = ""
 
-      if (paciente.clinica_id) {
-        const { data: clinica } = await supabase
-          .from("clinicas")
-          .select("nome,endereco")
-          .eq("id", paciente.clinica_id)
-          .single()
+        if (paciente.clinica_id) {
+          const { data: clinica, error: clinicaError } = await supabase
+            .from("clinicas")
+            .select("nome,endereco,telefone,lat,lng,url_maps")
+            .eq("id", paciente.clinica_id)
+            .single()
 
-        if (clinica) {
-          nombreClinica = clinica.nome || "Clínica asignada"
-          direccionClinica = clinica.endereco || ""
+          if (clinicaError) {
+            console.log("Error buscando clínica:", paciente.clinica_id, clinicaError)
+          }
+
+          if (clinica) {
+            nombreClinica = clinica.nome || "Clínica asignada"
+            direccionClinica = clinica.endereco || ""
+            telefonoClinica = clinica.telefone || ""
+            latClinica = clinica.lat ?? null
+            lngClinica = clinica.lng ?? null
+            urlMapsClinica = clinica.url_maps || ""
+          }
         }
-      }
 
-      const mapsLink = direccionClinica
-        ? `https://www.google.com/maps?q=${encodeURIComponent(direccionClinica)}`
-        : ""
+        const ubicacion =
+          urlMapsClinica.trim() ||
+          (latClinica != null && lngClinica != null
+            ? `https://www.google.com/maps?q=${latClinica},${lngClinica}`
+            : direccionClinica.trim() || "Ubicación no disponible")
 
-      const qrLink = `https://fundacion-rugimos.vercel.app/paciente/${paciente.codigo}`
+        const qrLink = `https://fundacion-rugimos.vercel.app/paciente/${paciente.codigo}`
 
-      const resp = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/send-whatsapp-template`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            telefono: paciente.telefono,
-            contentSid: process.env.TWILIO_WHATSAPP_CONTENT_SID_RECORDATORIO,
-            variables: {
-              "1": paciente.codigo,
-              "2": paciente.nombre_animal,
-              "3": nombreClinica,
-              "4": direccionClinica,
-              "5": paciente.fecha_programada,
-              "6": paciente.hora,
-              "7": mapsLink,
-              "8": qrLink
-            }
-          })
+        const telefonoClinicaFinal =
+          telefonoClinica.trim() || "No disponible"
+
+        const resp = await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/send-whatsapp-template`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              registro_id: paciente.id,
+              telefono: paciente.telefono,
+              tipo_mensaje: "recordatorio_24h",
+              variables: {
+                "1": String(paciente.codigo ?? ""),
+                "2": String(paciente.nombre_animal ?? ""),
+                "3": String(nombreClinica ?? "Clínica asignada"),
+                "4": String(paciente.fecha_programada ?? ""),
+                "5": String(paciente.hora ?? ""),
+                "6": String(ubicacion),
+                "7": String(qrLink),
+                "8": String(telefonoClinicaFinal),
+              },
+              payload_extra: {
+                clinica_id: paciente.clinica_id,
+                clinica_nombre: nombreClinica,
+                direccion_clinica: direccionClinica,
+                telefono_clinica: telefonoClinicaFinal,
+                clinica_lat: latClinica,
+                clinica_lng: lngClinica,
+                clinica_url_maps: urlMapsClinica,
+                fecha_programada: paciente.fecha_programada,
+                hora: paciente.hora,
+                estado_cita: paciente.estado_cita,
+              },
+            }),
+          }
+        )
+
+        const data = await resp.json()
+
+        if (resp.ok && data?.ok) {
+          await supabase
+            .from("registros")
+            .update({ recordatorio_24h_enviado: true })
+            .eq("id", paciente.id)
+
+          enviados++
+        } else {
+          console.log(
+            "Error enviando reminder:",
+            paciente.id,
+            data?.error || data?.moreInfo || "error desconocido"
+          )
+          errores++
         }
-      )
-
-      if (resp.ok) {
-        await supabase
-          .from("registros")
-          .update({ recordatorio_24h_enviado: true })
-          .eq("id", paciente.id)
-
-        enviados++
-      } else {
-        const txt = await resp.text()
-        console.log("Error enviando reminder:", txt)
+      } catch (err) {
+        console.log("Error interno enviando reminder:", paciente.id, err)
+        errores++
       }
     }
 
-    return NextResponse.json({ ok: true, enviados })
+    return NextResponse.json({
+      ok: true,
+      encontrados: pacientes?.length || 0,
+      enviados,
+      errores,
+    })
   } catch (err) {
     console.log("Error interno reminder-24h:", err)
     return NextResponse.json(

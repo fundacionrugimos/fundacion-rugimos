@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 
 type Entrada = {
@@ -21,8 +22,11 @@ function normalizarRelacion(rel: any) {
 }
 
 export default function HistorialEntradasPage() {
+  const router = useRouter()
   const [entradas, setEntradas] = useState<Entrada[]>([])
   const [cargando, setCargando] = useState(true)
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null)
+  
 
   useEffect(() => {
     cargarEntradas()
@@ -74,6 +78,118 @@ export default function HistorialEntradasPage() {
     setCargando(false)
   }
 
+  async function eliminarEntrada(entradaId: string) {
+  const confirmar = window.confirm(
+    "¿Seguro que desea eliminar esta entrada?\n\nEsta acción revertirá stock, movimientos y pagos vinculados."
+  )
+
+  if (!confirmar) return
+
+  setEliminandoId(entradaId)
+
+  try {
+    const { data: entrada, error: entradaError } = await supabase
+      .from("entradas_inventario")
+      .select("id, almacen_id, motivo")
+      .eq("id", entradaId)
+      .single()
+
+    if (entradaError || !entrada) {
+      throw new Error("No se pudo cargar la entrada.")
+    }
+
+    const { data: items, error: itemsError } = await supabase
+      .from("entradas_inventario_items")
+      .select("id, producto_id, cantidad")
+      .eq("entrada_id", entradaId)
+
+    if (itemsError) {
+      throw new Error("No se pudieron cargar los items de la entrada.")
+    }
+
+    for (const item of items || []) {
+      const { data: stockExistente, error: stockError } = await supabase
+        .from("stock_almacen")
+        .select("id, cantidad_actual")
+        .eq("almacen_id", entrada.almacen_id)
+        .eq("producto_id", item.producto_id)
+        .maybeSingle()
+
+      if (stockError) {
+        throw new Error(stockError.message)
+      }
+
+      if (stockExistente) {
+        const nuevaCantidad =
+          Number(stockExistente.cantidad_actual || 0) - Number(item.cantidad || 0)
+
+        const { error: updateStockError } = await supabase
+          .from("stock_almacen")
+          .update({
+            cantidad_actual: nuevaCantidad,
+          })
+          .eq("id", stockExistente.id)
+
+        if (updateStockError) {
+          throw new Error(updateStockError.message)
+        }
+      }
+
+      const { error: movimientoError } = await supabase
+        .from("movimientos_stock")
+        .insert([
+          {
+            producto_id: item.producto_id,
+            almacen_destino_id: entrada.almacen_id,
+            tipo_movimiento: "ajuste",
+            cantidad: Number(item.cantidad || 0),
+            motivo: `Reversión por eliminación de entrada ${entradaId}`,
+          },
+        ])
+
+      if (movimientoError) {
+        throw new Error(movimientoError.message)
+      }
+    }
+
+    const { error: deletePagosError } = await supabase
+      .from("pagos_entrada_inventario")
+      .delete()
+      .eq("entrada_id", entradaId)
+
+    if (deletePagosError) {
+      throw new Error(deletePagosError.message)
+    }
+
+    const { error: deleteItemsError } = await supabase
+      .from("entradas_inventario_items")
+      .delete()
+      .eq("entrada_id", entradaId)
+
+    if (deleteItemsError) {
+      throw new Error(deleteItemsError.message)
+    }
+
+    const { error: deleteEntradaError } = await supabase
+      .from("entradas_inventario")
+      .delete()
+      .eq("id", entradaId)
+
+    if (deleteEntradaError) {
+      throw new Error(deleteEntradaError.message)
+    }
+
+    alert("Entrada eliminada correctamente.")
+    await cargarEntradas()
+    router.refresh()
+  } catch (error: any) {
+    console.error(error)
+    alert(`No se pudo eliminar la entrada: ${error.message || "error interno"}`)
+  } finally {
+    setEliminandoId(null)
+  }
+}
+
   return (
     <div className="min-h-screen bg-[#0F6D6A] p-6 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -121,7 +237,7 @@ export default function HistorialEntradasPage() {
                     <th className="py-3 pr-3">Motivo</th>
                     <th className="py-3 pr-3">Items</th>
                     <th className="py-3 pr-3">Observación</th>
-                    <th className="py-3 pr-3">Detalle</th>
+                    <th className="py-3 pr-3">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -144,14 +260,46 @@ export default function HistorialEntradasPage() {
                       <td className="py-3 pr-3 text-gray-600">
                         {entrada.observacion || "-"}
                       </td>
-                      <td className="py-3 pr-3">
-                        <Link
-                          href={`/admin/inventario/entradas/${entrada.id}`}
-                          className="px-3 py-2 rounded-xl bg-[#0F6D6A] text-white font-semibold text-xs"
-                        >
-                          Ver detalle
-                        </Link>
-                      </td>
+                      <td className="py-3 pr-3 flex gap-2 flex-wrap">
+  <Link
+    href={`/admin/inventario/entradas/${entrada.id}`}
+    className="px-3 py-2 rounded-xl bg-[#0F6D6A] text-white font-semibold text-xs"
+  >
+    Ver
+  </Link>
+
+  <Link
+    href={`/admin/inventario/entradas/${entrada.id}/comprobante`}
+    target="_blank"
+    className="px-3 py-2 rounded-xl bg-emerald-100 text-emerald-700 font-semibold text-xs hover:bg-emerald-200 transition"
+  >
+    Ver comprobante
+  </Link>
+
+  <Link
+  href={`/admin/inventario/entradas/${entrada.id}/comprobante?print=1`}
+  target="_blank"
+  className="px-3 py-2 rounded-xl bg-amber-100 text-amber-700 font-semibold text-xs hover:bg-amber-200 transition"
+>
+  Reimpresión
+</Link>
+
+  <Link
+    href={`/admin/inventario/entrada?edit=${entrada.id}`}
+    className="px-3 py-2 rounded-xl bg-blue-100 text-blue-700 font-semibold text-xs hover:bg-blue-200 transition"
+  >
+    Editar
+  </Link>
+
+  <button
+  type="button"
+  onClick={() => eliminarEntrada(entrada.id)}
+  disabled={eliminandoId === entrada.id}
+  className="px-3 py-2 rounded-xl bg-red-100 text-red-700 font-semibold text-xs hover:bg-red-200 transition disabled:opacity-50"
+>
+  {eliminandoId === entrada.id ? "Eliminando..." : "Excluir"}
+</button>
+</td>
                     </tr>
                   ))}
                 </tbody>

@@ -4,12 +4,6 @@ import { useEffect, useMemo, useState } from "react"
 import CountUp from "react-countup"
 import { supabase } from "@/lib/supabase"
 
-type RegistroLite = {
-  id: string
-  estado_cita?: string | null
-  estado_clinica?: string | null
-}
-
 export default function Home() {
   const [showQR, setShowQR] = useState(false)
   const [loadingStats, setLoadingStats] = useState(true)
@@ -21,59 +15,35 @@ export default function Home() {
     noShow: 0,
   })
 
-  function normalizarTexto(valor?: string | null) {
-    return (valor || "")
-      .trim()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/_/g, " ")
-      .replace(/\s+/g, " ")
-  }
-
-  function esRealizada(registro: RegistroLite) {
-    const estadoCita = normalizarTexto(registro.estado_cita)
-    const estadoClinica = normalizarTexto(registro.estado_clinica)
-
-    return (
-      estadoCita === "realizado" ||
-      estadoCita === "atendido" ||
-      estadoCita === "fallecido" ||
-      estadoCita === "fallecio" ||
-      estadoClinica === "realizado" ||
-      estadoClinica === "atendido" ||
-      estadoClinica === "apto" ||
-      estadoClinica === "fallecido" ||
-      estadoClinica === "fallecio"
-    )
-  }
-
-  function esNoShow(registro: RegistroLite) {
-    const estadoCita = normalizarTexto(registro.estado_cita)
-    const estadoClinica = normalizarTexto(registro.estado_clinica)
-
-    return estadoCita === "no show" || estadoClinica === "no show"
-  }
-
   async function cargarImpacto() {
-    setLoadingStats(true)
+  setLoadingStats(true)
 
-    const [solicitudesRes, registrosRes] = await Promise.all([
-      supabase.from("solicitudes").select("id", { count: "exact", head: true }),
-      supabase.from("registros").select("id, estado_cita, estado_clinica"),
-    ])
+  try {
+    const res = await fetch("/api/public/impacto")
+    const json = await res.json()
 
-    const registros = (registrosRes.data || []) as RegistroLite[]
+    if (!res.ok || !json.ok) {
+      throw new Error(json.error || "No se pudo cargar el impacto")
+    }
 
     setStats({
-      solicitudes: solicitudesRes.count || 0,
-      aprobadas: registros.length,
-      realizadas: registros.filter((r) => esRealizada(r)).length,
-      noShow: registros.filter((r) => esNoShow(r)).length,
+      solicitudes: json.data?.solicitudes || 0,
+      aprobadas: json.data?.aprobadas || 0,
+      realizadas: json.data?.realizadas || 0,
+      noShow: json.data?.noShow || 0,
     })
-
+  } catch (error) {
+    console.error("Error cargando impacto:", error)
+    setStats({
+      solicitudes: 0,
+      aprobadas: 0,
+      realizadas: 0,
+      noShow: 0,
+    })
+  } finally {
     setLoadingStats(false)
   }
+}
 
   useEffect(() => {
     cargarImpacto()
@@ -137,18 +107,18 @@ export default function Home() {
           </div>
 
           {/* CARDS PRINCIPALES */}
-          <div className="grid md:grid-cols-3 gap-6 w-full mb-14">
-            <div className="group bg-white text-gray-800 p-7 rounded-3xl shadow-2xl border border-white/60 flex flex-col justify-between h-full text-center transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(0,0,0,0.18)]">
+          <div className="grid w-full gap-7 mb-16 md:grid-cols-2 xl:grid-cols-4">
+            <div className="group flex h-full flex-col justify-between rounded-[30px] border border-white/40 bg-white/95 p-8 text-center text-gray-800 shadow-[0_18px_45px_rgba(0,0,0,0.12)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(0,0,0,0.18)]">
               <div>
-                <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#0F6D6A]/10 flex items-center justify-center text-2xl">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0F6D6A]/10 text-3xl shadow-sm">
                   📝
                 </div>
 
-                <h2 className="text-2xl font-bold mb-3 text-[#0F6D6A]">
+                <h2 className="mb-4 text-[30px] font-extrabold leading-tight text-[#0F6D6A]">
                   Solicita tu cupo
                 </h2>
 
-                <p className="mb-6 text-gray-600 leading-relaxed">
+                <p className="mb-8 text-[17px] leading-8 text-slate-600">
                   Complete el formulario para solicitar cupo y esterilizar su mascota
                   de manera gratuita.
                 </p>
@@ -156,23 +126,23 @@ export default function Home() {
 
               <a
                 href="/solicitud-info"
-                className="bg-[#f47c3c] text-white px-6 py-3 rounded-xl font-semibold hover:opacity-90 transition shadow-md"
+                className="rounded-2xl bg-[#F47C3C] px-6 py-3.5 text-[17px] font-bold text-white shadow-md transition hover:scale-[1.02] hover:opacity-95"
               >
                 Iniciar solicitud
               </a>
             </div>
 
-            <div className="group bg-white text-gray-800 p-7 rounded-3xl shadow-2xl border border-white/60 flex flex-col justify-between h-full text-center transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(0,0,0,0.18)]">
+            <div className="group flex h-full flex-col justify-between rounded-[30px] border border-white/40 bg-white/95 p-8 text-center text-gray-800 shadow-[0_18px_45px_rgba(0,0,0,0.12)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(0,0,0,0.18)]">
               <div>
-                <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#f47c3c]/10 flex items-center justify-center text-2xl">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#F47C3C]/10 text-3xl shadow-sm">
                   💛
                 </div>
 
-                <h2 className="text-2xl font-bold mb-3 text-[#0F6D6A]">
+                <h2 className="mb-4 text-[30px] font-extrabold leading-tight text-[#0F6D6A]">
                   Donaciones
                 </h2>
 
-                <p className="mb-6 text-gray-600 leading-relaxed">
+                <p className="mb-8 text-[17px] leading-8 text-slate-600">
                   Tu aporte, por pequeño que sea, nos permite esterilizar más animales
                   y enfrentar la sobrepoblación.
                 </p>
@@ -180,23 +150,23 @@ export default function Home() {
 
               <button
                 onClick={() => setShowQR(true)}
-                className="bg-[#f47c3c] text-white px-6 py-3 rounded-xl font-semibold hover:opacity-90 transition shadow-md"
+                className="rounded-2xl bg-[#F47C3C] px-6 py-3.5 text-[17px] font-bold text-white shadow-md transition hover:scale-[1.02] hover:opacity-95"
               >
                 Donar
               </button>
             </div>
 
-            <div className="group bg-white text-gray-800 p-7 rounded-3xl shadow-2xl border border-white/60 flex flex-col justify-between h-full text-center transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(0,0,0,0.18)]">
+            <div className="group flex h-full flex-col justify-between rounded-[30px] border border-white/40 bg-white/95 p-8 text-center text-gray-800 shadow-[0_18px_45px_rgba(0,0,0,0.12)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(0,0,0,0.18)]">
               <div>
-                <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#0F6D6A]/10 flex items-center justify-center text-2xl">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0F6D6A]/10 text-3xl shadow-sm">
                   ℹ️
                 </div>
 
-                <h2 className="text-2xl font-bold mb-3 text-[#0F6D6A]">
+                <h2 className="mb-4 text-[30px] font-extrabold leading-tight text-[#0F6D6A]">
                   Información General
                 </h2>
 
-                <p className="mb-6 text-gray-600 leading-relaxed">
+                <p className="mb-8 text-[17px] leading-8 text-slate-600">
                   Contáctanos para recibir más información sobre la Fundación Rugimos
                   y nuestro trabajo.
                 </p>
@@ -206,10 +176,42 @@ export default function Home() {
                 href="https://wa.me/59178556854?text=Hola,%20deseo%20obtener%20información%20sobre%20la%20Fundación%20RUGIMOS."
                 target="_blank"
                 rel="noreferrer"
-                className="bg-[#f47c3c] text-white px-6 py-3 rounded-xl font-semibold hover:opacity-90 transition shadow-md"
+                className="rounded-2xl bg-[#F47C3C] px-6 py-3.5 text-[17px] font-bold text-white shadow-md transition hover:scale-[1.02] hover:opacity-95"
               >
                 Contactar
               </a>
+            </div>
+
+            <div className="group flex h-full flex-col justify-between rounded-[30px] border border-white/40 bg-white/95 p-8 text-center text-gray-800 shadow-[0_18px_45px_rgba(0,0,0,0.12)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(0,0,0,0.18)]">
+              <div>
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#F47C3C]/10 text-3xl shadow-sm">
+                  🐾
+                </div>
+
+                <h2 className="mb-4 text-[30px] font-extrabold leading-tight text-[#0F6D6A]">
+                  Adopciones
+                </h2>
+
+                <p className="mb-8 text-[17px] leading-8 text-slate-600">
+                  Encuentra un nuevo compañero o publica un animal para adopción responsable.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <a
+                  href="/adopciones"
+                  className="rounded-2xl bg-[#F47C3C] px-6 py-3.5 text-[17px] font-bold text-white shadow-md transition hover:scale-[1.02] hover:opacity-95"
+                >
+                  Adoptar
+                </a>
+
+                <a
+                  href="/adopciones/publicar"
+                  className="rounded-2xl border border-[#0F6D6A]/25 bg-white px-6 py-3.5 text-[17px] font-bold text-[#0F6D6A] shadow-sm transition hover:scale-[1.02] hover:bg-[#f7fbfb]"
+                >
+                  Dar en adopción
+                </a>
+              </div>
             </div>
           </div>
 
@@ -285,33 +287,37 @@ export default function Home() {
               </button>
             </div>
           </section>
+
+          {/* MODAL QR */}
+          {showQR && (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-white p-8 rounded-3xl text-center text-black max-w-sm w-full shadow-2xl border border-white/50">
+                <h2 className="text-2xl font-bold mb-4 text-[#0F6D6A]">
+                  Escanee el QR para donar
+                </h2>
+
+                <img
+                  src="/qr.png"
+                  alt="QR Donación"
+                  className="mb-4 mx-auto rounded-xl"
+                />
+
+                <p className="text-sm text-gray-600 mb-5 leading-relaxed">
+                  Cada aporte nos ayuda a esterilizar más animales, ampliar campañas y
+                  continuar nuestra labor con mayor alcance.
+                </p>
+
+                <button
+                  onClick={() => setShowQR(false)}
+                  className="bg-[#f47c3c] text-white px-5 py-3 rounded-xl font-semibold hover:opacity-90 transition"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* MODAL QR */}
-      {showQR && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-8 rounded-3xl text-center text-black max-w-sm w-full shadow-2xl border border-white/50">
-            <h2 className="text-2xl font-bold mb-4 text-[#0F6D6A]">
-              Escanee el QR para donar
-            </h2>
-
-            <img src="/qr.png" alt="QR Donación" className="mb-4 mx-auto rounded-xl" />
-
-            <p className="text-sm text-gray-600 mb-5 leading-relaxed">
-              Cada aporte nos ayuda a esterilizar más animales, ampliar campañas y
-              continuar nuestra labor con mayor alcance.
-            </p>
-
-            <button
-              onClick={() => setShowQR(false)}
-              className="bg-[#f47c3c] text-white px-5 py-3 rounded-xl font-semibold hover:opacity-90 transition"
-            >
-              Cerrar
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

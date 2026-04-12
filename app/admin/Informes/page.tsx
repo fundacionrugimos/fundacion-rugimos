@@ -46,12 +46,52 @@ type RegistroLite = {
   estado_clinica?: string | null
   estado_cita?: string | null
   fecha_programada?: string | null
+  fecha_cirugia_realizada?: string | null
 }
 
 type ClinicaLite = {
   id: string
   nome: string
   ativa?: boolean | null
+}
+
+function fechaSolo(valor?: string | null) {
+  return valor ? valor.slice(0, 10) : ""
+}
+
+function fechaBaseContabilizada(registro: RegistroLite) {
+  if (esContabilizado(registro)) {
+    return fechaSolo(registro.fecha_cirugia_realizada) || registro.fecha_programada || ""
+  }
+  return registro.fecha_programada || ""
+}
+
+async function fetchAllRows<T>(
+  table: string,
+  selectClause: string,
+  build?: (query: any) => any,
+  pageSize = 1000
+): Promise<T[]> {
+  let from = 0
+  let allRows: T[] = []
+
+  while (true) {
+    let query = supabase.from(table).select(selectClause)
+
+    if (build) query = build(query)
+
+    const { data, error } = await query.range(from, from + pageSize - 1)
+
+    if (error) throw error
+
+    const rows = (data || []) as T[]
+    allRows = allRows.concat(rows)
+
+    if (rows.length < pageSize) break
+    from += pageSize
+  }
+
+  return allRows
 }
 
 function esContabilizado(registro: RegistroLite) {
@@ -112,9 +152,10 @@ export default function AdminInformesPage() {
         .select("*", { count: "exact", head: true })
         .eq("estado", "pendiente"),
 
-      supabase
-        .from("registros")
-        .select("id, clinica_id, especie, sexo, pagado, estado_clinica, estado_cita, fecha_programada"),
+      fetchAllRows<RegistroLite>(
+  "registros",
+  "id, clinica_id, especie, sexo, pagado, estado_clinica, estado_cita, fecha_programada, fecha_cirugia_realizada"
+),
 
       supabase
         .from("clinicas")
@@ -129,7 +170,7 @@ export default function AdminInformesPage() {
     setSolicitudesTotales(solicitudesRes.count || 0)
     setSolicitudesPendientes(solicitudesPendientesRes.count || 0)
 
-    const registrosData = (registrosRes.data || []) as RegistroLite[]
+    const registrosData = registrosRes as RegistroLite[]
     const clinicasData = (clinicasRes.data || []) as ClinicaLite[]
 
     setRegistros(registrosData)
@@ -169,8 +210,8 @@ export default function AdminInformesPage() {
     }).length
 
     const contabilizadosHoyCount = registrosData.filter((r) => {
-      return r.fecha_programada === hoy && esContabilizado(r)
-    }).length
+  return fechaBaseContabilizada(r) === hoy && esContabilizado(r)
+}).length
 
     setRegistrosProgramados(programados)
     setCirugiasContabilizadas(contabilizadas)
@@ -206,61 +247,63 @@ export default function AdminInformesPage() {
   }, [clinicas])
 
   const estadisticasMes = useMemo(() => {
-    const inicioMes = inicioMesISO()
+  const inicioMes = inicioMesISO()
 
-    const delMes = registros.filter((r) => (r.fecha_programada || "") >= inicioMes)
+  const delMes = registros.filter((r) => {
+    const fecha = fechaBaseContabilizada(r)
+    return fecha >= inicioMes
+  })
 
-    const contabilizadosMes = delMes.filter((r) => esContabilizado(r)).length
+  const contabilizadosMes = delMes.filter((r) => esContabilizado(r)).length
 
-    const noShowMes = delMes.filter((r) => {
-      const estado = normalizarEstado(r.estado_cita)
-      const estadoClinica = normalizarEstado(r.estado_clinica)
+  const noShowMes = delMes.filter((r) => {
+    const estado = normalizarEstado(r.estado_cita)
+    const estadoClinica = normalizarEstado(r.estado_clinica)
+    return estado === "no show" || estadoClinica === "no show"
+  }).length
 
-      return estado === "no show" || estadoClinica === "no show"
-    }).length
+  const canceladosMes = delMes.filter((r) => {
+    const estado = normalizarEstado(r.estado_cita)
+    const estadoClinica = normalizarEstado(r.estado_clinica)
 
-    const canceladosMes = delMes.filter((r) => {
-      const estado = normalizarEstado(r.estado_cita)
-      const estadoClinica = normalizarEstado(r.estado_clinica)
+    return (
+      estado === "cancelado" ||
+      estado === "rechazado" ||
+      estadoClinica === "rechazado" ||
+      estadoClinica === "no apto"
+    )
+  }).length
 
-      return (
-        estado === "cancelado" ||
-        estado === "rechazado" ||
-        estadoClinica === "rechazado" ||
-        estadoClinica === "no apto"
-      )
-    }).length
+  const pendientesMes = delMes.filter((r) => {
+    const estado = normalizarEstado(r.estado_cita)
+    return estado === "programado" || estado === "reprogramado"
+  }).length
 
-    const pendientesMes = delMes.filter((r) => {
-      const estado = normalizarEstado(r.estado_cita)
-      return estado === "programado" || estado === "reprogramado"
-    }).length
-
-    return {
-      contabilizadosMes,
-      noShowMes,
-      canceladosMes,
-      pendientesMes,
-    }
-  }, [registros])
+  return {
+    contabilizadosMes,
+    noShowMes,
+    canceladosMes,
+    pendientesMes,
+  }
+}, [registros])
 
   const evolucionSemanal = useMemo(() => {
-    const dias = ultimoNDiasISO(7)
+  const dias = ultimoNDiasISO(7)
 
-    return dias.map((fecha) => {
-      const total = registros.filter((r) => r.fecha_programada === fecha).length
-      const contabilizados = registros.filter(
-        (r) => r.fecha_programada === fecha && esContabilizado(r)
-      ).length
+  return dias.map((fecha) => {
+    const total = registros.filter((r) => fechaBaseContabilizada(r) === fecha).length
+    const contabilizados = registros.filter(
+      (r) => fechaBaseContabilizada(r) === fecha && esContabilizado(r)
+    ).length
 
-      return {
-        fecha,
-        etiqueta: fecha.slice(5),
-        total,
-        contabilizados,
-      }
-    })
-  }, [registros])
+    return {
+      fecha,
+      etiqueta: fecha.slice(5),
+      total,
+      contabilizados,
+    }
+  })
+}, [registros])
 
   const maximoGrafico = useMemo(() => {
     if (!evolucionSemanal.length) return 1
@@ -274,24 +317,24 @@ export default function AdminInformesPage() {
     > = {}
 
     registros.forEach((r) => {
-      const clinica = r.clinica_id ? mapaClinicas[r.clinica_id] || "Sin clínica" : "Sin clínica"
+  const clinica = r.clinica_id ? mapaClinicas[r.clinica_id] || "Sin clínica" : "Sin clínica"
 
-      if (!mapa[clinica]) {
-        mapa[clinica] = {
-          clinica,
-          contabilizados: 0,
-          programados: 0,
-          noShow: 0,
-        }
-      }
+  if (!mapa[clinica]) {
+    mapa[clinica] = {
+      clinica,
+      contabilizados: 0,
+      programados: 0,
+      noShow: 0,
+    }
+  }
 
-      const estado = normalizarEstado(r.estado_cita)
-      const estadoClinica = normalizarEstado(r.estado_clinica)
+  const estado = normalizarEstado(r.estado_cita)
+  const estadoClinica = normalizarEstado(r.estado_clinica)
 
-      if (esContabilizado(r)) mapa[clinica].contabilizados += 1
-      if (estado === "programado" || estado === "reprogramado") mapa[clinica].programados += 1
-      if (estado === "no show" || estadoClinica === "no show") mapa[clinica].noShow += 1
-    })
+  if (esContabilizado(r)) mapa[clinica].contabilizados += 1
+  if (estado === "programado" || estado === "reprogramado") mapa[clinica].programados += 1
+  if (estado === "no show" || estadoClinica === "no show") mapa[clinica].noShow += 1
+})
 
     return Object.values(mapa)
       .filter((c) => c.clinica !== "Sin clínica")
@@ -308,7 +351,7 @@ export default function AdminInformesPage() {
     > = {}
 
     registros
-      .filter((r) => r.fecha_programada === hoy)
+  .filter((r) => fechaBaseContabilizada(r) === hoy || r.fecha_programada === hoy)
       .forEach((r) => {
         const clinica = r.clinica_id ? mapaClinicas[r.clinica_id] || "Sin clínica" : "Sin clínica"
 

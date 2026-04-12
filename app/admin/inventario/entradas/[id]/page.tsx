@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 
 type Entrada = {
@@ -35,13 +35,26 @@ export default function DetalleEntradaPage() {
   const params = useParams()
   const id = Array.isArray(params.id) ? params.id[0] : params.id ?? ""
 
+  const searchParams = useSearchParams()
+  const autoPrint = searchParams.get("print") === "1"
+
   const [entrada, setEntrada] = useState<Entrada | null>(null)
   const [items, setItems] = useState<EntradaItem[]>([])
   const [cargando, setCargando] = useState(true)
 
   useEffect(() => {
-    if (id) cargarDetalle()
-  }, [id])
+  if (id) cargarDetalle()
+}, [id])
+
+useEffect(() => {
+  if (!autoPrint || cargando || !entrada) return
+
+  const timeout = setTimeout(() => {
+    window.print()
+  }, 500)
+
+  return () => clearTimeout(timeout)
+}, [autoPrint, cargando, entrada])
 
   async function cargarDetalle() {
     setCargando(true)

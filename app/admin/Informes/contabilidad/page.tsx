@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import * as XLSX from "xlsx"
+import ExcelJS from "exceljs"
 
 type Clinica = {
   id: string
@@ -21,6 +22,7 @@ type Registro = {
   pagado: boolean | null
   fecha_pago?: string | null
   fecha_programada: string | null
+  fecha_cirugia_realizada?: string | null
   estado_clinica?: string | null
   estado_cita?: string | null
 }
@@ -96,7 +98,11 @@ function toNumber(v: unknown) {
   return Number.isFinite(n) ? n : 0
 }
 
-function normalizarEstado(valor?: string | null) {
+function fechaSolo(valor?: string | null) {
+  return valor ? valor.slice(0, 10) : ""
+}
+
+function normalizarTexto(valor?: string | null) {
   return (valor || "")
     .trim()
     .toLowerCase()
@@ -106,20 +112,67 @@ function normalizarEstado(valor?: string | null) {
     .replace(/\s+/g, " ")
 }
 
-function esAptoFinanciero(registro: Registro) {
-  const estadoClinica = normalizarEstado(registro.estado_clinica)
-  const estadoCita = normalizarEstado(registro.estado_cita)
+function normalizarLabel(valor?: string | null) {
+  const v = normalizarTexto(valor)
+  if (v === "perro") return "Perro"
+  if (v === "gato") return "Gato"
+  if (v === "macho") return "Macho"
+  if (v === "hembra") return "Hembra"
+  return valor || ""
+}
+
+function hoyLocalISO() {
+  const ahora = new Date()
+  const offset = ahora.getTimezoneOffset()
+  const local = new Date(ahora.getTime() - offset * 60 * 1000)
+  return local.toISOString().slice(0, 10)
+}
+
+function esEstadoDescartadoParaAgenda(registro: Registro) {
+  const estadoClinica = normalizarTexto(registro.estado_clinica)
+  const estadoCita = normalizarTexto(registro.estado_cita)
 
   return (
-    estadoClinica === "apto" ||
-    estadoCita === "realizado" ||
-    estadoCita === "atendido"
+    estadoClinica === "reprogramado" ||
+    estadoClinica === "rechazado" ||
+    estadoClinica === "no apto" ||
+    estadoClinica === "fallecido" ||
+    estadoClinica === "fallecio" ||
+    estadoCita === "cancelado" ||
+    estadoCita === "rechazado" ||
+    estadoCita === "fallecido" ||
+    estadoCita === "fallecio"
+  )
+}
+
+function obtenerCorteDomingo(dataStr: string) {
+  const [ano, mes, dia] = dataStr.split("-").map(Number)
+  const data = new Date(ano, mes - 1, dia)
+  const diaSemana = data.getDay()
+  if (diaSemana !== 0) {
+    data.setDate(data.getDate() + (7 - diaSemana))
+  }
+
+  const yyyy = data.getFullYear()
+  const mm = String(data.getMonth() + 1).padStart(2, "0")
+  const dd = String(data.getDate()).padStart(2, "0")
+
+  return {
+    orden: `${yyyy}-${mm}-${dd}`,
+    label: `${dd}/${mm}`,
+  }
+}
+
+function esAptoFinanciero(registro: Registro) {
+  return (
+    normalizarTexto(registro.estado_clinica) === "apto" &&
+    Boolean(registro.fecha_cirugia_realizada)
   )
 }
 
 function esNoShow(registro: Registro) {
-  const estadoClinica = normalizarEstado(registro.estado_clinica)
-  const estadoCita = normalizarEstado(registro.estado_cita)
+  const estadoClinica = normalizarTexto(registro.estado_clinica)
+  const estadoCita = normalizarTexto(registro.estado_cita)
 
   return estadoClinica === "no show" || estadoCita === "no show"
 }
@@ -178,12 +231,7 @@ function prepararHojaConTitulo(
   subtitulo: string,
   filas: Record<string, any>[]
 ) {
-  const encabezado = [
-    [titulo],
-    [subtitulo],
-    [],
-  ]
-
+  const encabezado = [[titulo], [subtitulo], []]
   const ws = XLSX.utils.aoa_to_sheet(encabezado)
 
   if (filas.length > 0) {
@@ -193,6 +241,291 @@ function prepararHojaConTitulo(
   }
 
   return ws
+}
+
+
+async function agregarLogoSiExiste(workbook: ExcelJS.Workbook, ws: ExcelJS.Worksheet) {
+  try {
+    const response = await fetch("/logo.png")
+    if (!response.ok) return
+
+    const blob = await response.blob()
+
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const result = reader.result
+        if (typeof result === "string") {
+          resolve(result)
+        } else {
+          reject(new Error("No se pudo convertir el logo."))
+        }
+      }
+      reader.onerror = () => reject(new Error("No se pudo leer el logo."))
+      reader.readAsDataURL(blob)
+    })
+
+    const logoId = workbook.addImage({
+      base64,
+      extension: "png",
+    })
+
+    ws.addImage(logoId, {
+      tl: { col: 0, row: 0 },
+      ext: { width: 120, height: 70 },
+    })
+  } catch (error) {
+    console.log("Logo no cargado:", error)
+  }
+}
+
+function descargarExcelBuffer(bufferFinal: ArrayBuffer | Uint8Array, nombreArchivo: string) {
+  const blob = new Blob(
+    [bufferFinal instanceof ArrayBuffer ? bufferFinal : new Uint8Array(bufferFinal)],
+    {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }
+  )
+
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = nombreArchivo
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+function aplicarEstiloCabecera(row: ExcelJS.Row, color: string) {
+  row.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: color },
+    }
+    cell.font = { color: { argb: "FFFFFFFF" }, bold: true }
+    cell.alignment = { horizontal: "center", vertical: "middle" }
+    cell.border = {
+      top: { style: "thin", color: { argb: "FFD1D5DB" } },
+      left: { style: "thin", color: { argb: "FFD1D5DB" } },
+      bottom: { style: "thin", color: { argb: "FFD1D5DB" } },
+      right: { style: "thin", color: { argb: "FFD1D5DB" } },
+    }
+  })
+}
+
+function aplicarEstiloFila(row: ExcelJS.Row, zebra = false) {
+  row.eachCell((cell) => {
+    if (zebra) {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFF9FAFB" },
+      }
+    }
+    cell.alignment = { vertical: "middle", horizontal: "left" }
+    cell.border = {
+      top: { style: "thin", color: { argb: "FFE5E7EB" } },
+      left: { style: "thin", color: { argb: "FFE5E7EB" } },
+      bottom: { style: "thin", color: { argb: "FFE5E7EB" } },
+      right: { style: "thin", color: { argb: "FFE5E7EB" } },
+    }
+  })
+}
+
+function GraficoLineaFinanciera({
+  data,
+}: {
+  data: Array<{
+    periodo: string
+    generado: number
+    pagado: number
+    pendiente: number
+  }>
+}) {
+  if (!data.length) {
+    return <p className="text-gray-500">No hay datos para el período seleccionado.</p>
+  }
+
+  const width = 1000
+  const height = 260
+  const paddingTop = 20
+  const paddingRight = 24
+  const paddingBottom = 44
+  const paddingLeft = 56
+
+  const innerWidth = width - paddingLeft - paddingRight
+  const innerHeight = height - paddingTop - paddingBottom
+
+  const maxY = Math.max(
+    1,
+    ...data.flatMap((item) => [item.generado, item.pagado, item.pendiente])
+  )
+
+  const yTicks = 5
+  const points = data.map((item, index) => {
+    const x =
+      data.length === 1
+        ? paddingLeft + innerWidth / 2
+        : paddingLeft + (index * innerWidth) / (data.length - 1)
+
+    const yGenerado = paddingTop + innerHeight - (item.generado / maxY) * innerHeight
+    const yPagado = paddingTop + innerHeight - (item.pagado / maxY) * innerHeight
+    const yPendiente = paddingTop + innerHeight - (item.pendiente / maxY) * innerHeight
+
+    return { ...item, x, yGenerado, yPagado, yPendiente }
+  })
+
+  const polyline = (key: "yGenerado" | "yPagado" | "yPendiente") =>
+    points.map((p) => `${p.x},${p[key]}`).join(" ")
+
+  return (
+    <div className="w-full overflow-x-auto">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full min-w-[720px] h-[260px]"
+        role="img"
+        aria-label="Gráfico de evolución financiera"
+      >
+        {Array.from({ length: yTicks + 1 }).map((_, index) => {
+          const value = (maxY / yTicks) * (yTicks - index)
+          const y = paddingTop + (innerHeight * index) / yTicks
+
+          return (
+            <g key={index}>
+              <line
+                x1={paddingLeft}
+                y1={y}
+                x2={width - paddingRight}
+                y2={y}
+                stroke="#E5E7EB"
+                strokeWidth="1"
+              />
+              <text
+                x={paddingLeft - 10}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="11"
+                fill="#6B7280"
+              >
+                {`Bs ${value.toFixed(0)}`}
+              </text>
+            </g>
+          )
+        })}
+
+        <line
+          x1={paddingLeft}
+          y1={paddingTop}
+          x2={paddingLeft}
+          y2={paddingTop + innerHeight}
+          stroke="#9CA3AF"
+          strokeWidth="1.2"
+        />
+        <line
+          x1={paddingLeft}
+          y1={paddingTop + innerHeight}
+          x2={width - paddingRight}
+          y2={paddingTop + innerHeight}
+          stroke="#9CA3AF"
+          strokeWidth="1.2"
+        />
+
+        <polyline
+          fill="none"
+          stroke="#F47C3C"
+          strokeWidth="3"
+          points={polyline("yGenerado")}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        <polyline
+          fill="none"
+          stroke="#16A34A"
+          strokeWidth="3"
+          points={polyline("yPagado")}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        <polyline
+          fill="none"
+          stroke="#DC2626"
+          strokeWidth="3"
+          points={polyline("yPendiente")}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+
+        {points.map((p, index) => (
+          <g key={index}>
+            <circle cx={p.x} cy={p.yGenerado} r="4.5" fill="#F47C3C" />
+            <circle cx={p.x} cy={p.yPagado} r="4.5" fill="#16A34A" />
+            <circle cx={p.x} cy={p.yPendiente} r="4.5" fill="#DC2626" />
+            <text
+              x={p.x}
+              y={height - 16}
+              textAnchor="middle"
+              fontSize="11"
+              fill="#374151"
+            >
+              {p.periodo}
+            </text>
+          </g>
+        ))}
+      </svg>
+
+      <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-600">
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-4 h-[3px] bg-[#F47C3C] rounded-full" />
+          Generado
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-4 h-[3px] bg-green-600 rounded-full" />
+          Pagado
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-4 h-[3px] bg-red-600 rounded-full" />
+          Pendiente
+        </div>
+      </div>
+    </div>
+  )
+}
+
+async function fetchAllRows<T>(
+  table: string,
+  selectClause: string,
+  build?: (query: any) => any,
+  pageSize = 1000
+): Promise<T[]> {
+  let from = 0
+  let allRows: T[] = []
+
+  while (true) {
+    let query = supabase.from(table).select(selectClause)
+
+    if (build) {
+      query = build(query)
+    }
+
+    const { data, error } = await query.range(from, from + pageSize - 1)
+
+    if (error) {
+      throw error
+    }
+
+    const rows = (data || []) as T[]
+    allRows = allRows.concat(rows)
+
+    if (rows.length < pageSize) {
+      break
+    }
+
+    from += pageSize
+  }
+
+  return allRows
 }
 
 export default function InformesContabilidadPage() {
@@ -232,63 +565,78 @@ export default function InformesContabilidadPage() {
   }, [tipoPeriodo])
 
   async function cargarDatos() {
-    setCargando(true)
+  setCargando(true)
 
-    const [clinicasRes, registrosRes, tarifasRes, pagosRes, detallesRes] = await Promise.all([
-      supabase
-        .from("clinicas")
-        .select("id,nome")
-        .order("nome", { ascending: true }),
+  try {
+    const [
+      clinicasData,
+      registrosData,
+      tarifasData,
+      pagosData,
+      detallesData,
+    ] = await Promise.all([
+      fetchAllRows<Clinica>(
+        "clinicas",
+        "id,nome",
+        (q) => q.order("nome", { ascending: true })
+      ),
 
-      supabase
-        .from("registros")
-        .select("id,codigo,clinica_id,especie,sexo,tipo_animal,nombre_animal,pagado,fecha_pago,fecha_programada,estado_clinica,estado_cita"),
+      fetchAllRows<Registro>(
+        "registros",
+        "id,codigo,clinica_id,especie,sexo,tipo_animal,nombre_animal,pagado,fecha_pago,fecha_programada,fecha_cirugia_realizada,estado_clinica,estado_cita"
+      ),
 
-      supabase
-        .from("tarifas_clinica")
-        .select("id,clinica_id,especie,sexo,valor,activo")
-        .eq("activo", true),
+      fetchAllRows<TarifaClinica>(
+        "tarifas_clinica",
+        "id,clinica_id,especie,sexo,valor,activo",
+        (q) => q.eq("activo", true)
+      ),
 
-      supabase
-        .from("pagos_clinica")
-        .select("id,clinica_id,fecha_pago,periodo_tipo,fecha_inicio,fecha_fin,cantidad_animales,monto_total,observacion,registrado_por,created_at")
-        .order("fecha_pago", { ascending: false }),
+      fetchAllRows<PagoClinica>(
+        "pagos_clinica",
+        "id,clinica_id,fecha_pago,periodo_tipo,fecha_inicio,fecha_fin,cantidad_animales,monto_total,observacion,registrado_por,created_at",
+        (q) => q.order("fecha_pago", { ascending: false })
+      ),
 
-      supabase
-        .from("pagos_clinica_detalle")
-        .select("id,pago_id,registro_id,monto_unitario,monto_total,created_at"),
+      fetchAllRows<PagoDetalle>(
+        "pagos_clinica_detalle",
+        "id,pago_id,registro_id,monto_unitario,monto_total,created_at"
+      ),
     ])
 
-    if (clinicasRes.data) setClinicas(clinicasRes.data as Clinica[])
-    if (registrosRes.data) setRegistros(registrosRes.data as Registro[])
-    if (tarifasRes.data) {
-      setTarifas(
-        (tarifasRes.data as any[]).map((t) => ({
-          ...t,
-          valor: toNumber(t.valor),
-        }))
-      )
-    }
-    if (pagosRes.data) {
-      setPagos(
-        (pagosRes.data as any[]).map((p) => ({
-          ...p,
-          monto_total: toNumber(p.monto_total),
-        }))
-      )
-    }
-    if (detallesRes.data) {
-      setDetalles(
-        (detallesRes.data as any[]).map((d) => ({
+    setClinicas(clinicasData)
+    setRegistros(registrosData)
+
+    setTarifas(
+      tarifasData.map((t) => ({
+        ...t,
+        valor: toNumber(t.valor),
+      }))
+    )
+
+    setPagos(
+      pagosData.map((p) => ({
+        ...p,
+        monto_total: toNumber(p.monto_total),
+      }))
+    )
+
+    setDetalles(
+      detalhesOrdenados(
+        detallesData.map((d) => ({
           ...d,
           monto_unitario: toNumber(d.monto_unitario),
           monto_total: toNumber(d.monto_total),
         }))
       )
-    }
-
+    )
+  } catch (error) {
+    console.log("Error cargando informe de contabilidad:", error)
+    alert("No se pudo cargar el informe de contabilidad.")
+  } finally {
     setCargando(false)
   }
+}
 
   const mapaClinicas = useMemo(() => {
     const mapa: Record<string, string> = {}
@@ -301,7 +649,7 @@ export default function InformesContabilidadPage() {
   const mapaTarifas = useMemo(() => {
     const mapa: Record<string, number> = {}
     tarifas.forEach((t) => {
-      const key = `${t.clinica_id}__${(t.especie || "").trim().toLowerCase()}__${(t.sexo || "").trim().toLowerCase()}`
+      const key = `${t.clinica_id}__${normalizarTexto(t.especie)}__${normalizarTexto(t.sexo)}`
       mapa[key] = toNumber(t.valor)
     })
     return mapa
@@ -317,7 +665,7 @@ export default function InformesContabilidadPage() {
 
   const mapaDetallePorRegistro = useMemo(() => {
     const mapa: Record<string, PagoDetalle> = {}
-    detalles.forEach((d: PagoDetalle) => {
+    detalhesOrdenados(detalles).forEach((d) => {
       mapa[d.registro_id] = d
     })
     return mapa
@@ -325,7 +673,7 @@ export default function InformesContabilidadPage() {
 
   const especiesDisponibles = useMemo(() => {
     return Array.from(
-      new Set(registros.map((r) => (r.especie || "").trim()).filter(Boolean))
+      new Set(registros.map((r) => normalizarLabel(r.especie)).filter(Boolean))
     ).sort()
   }, [registros])
 
@@ -337,11 +685,25 @@ export default function InformesContabilidadPage() {
 
   const registrosBasePeriodo = useMemo(() => {
     return registros.filter((r) => {
-      if (!r.fecha_programada) return false
-      if (fechaInicio && r.fecha_programada < fechaInicio) return false
-      if (fechaFin && r.fecha_programada > fechaFin) return false
+      const fechaCirugia = fechaSolo(r.fecha_cirugia_realizada)
+      if (!fechaCirugia) return false
+      if (fechaInicio && fechaCirugia < fechaInicio) return false
+      if (fechaFin && fechaCirugia > fechaFin) return false
       if (clinicaFiltro && r.clinica_id !== clinicaFiltro) return false
-      if (especieFiltro && (r.especie || "") !== especieFiltro) return false
+      if (especieFiltro && normalizarLabel(r.especie) !== especieFiltro) return false
+      if (tipoAnimalFiltro && (r.tipo_animal || "") !== tipoAnimalFiltro) return false
+      return true
+    })
+  }, [registros, fechaInicio, fechaFin, clinicaFiltro, especieFiltro, tipoAnimalFiltro])
+
+  const registrosAgendaPeriodo = useMemo(() => {
+    return registros.filter((r) => {
+      const fechaProgramada = fechaSolo(r.fecha_programada)
+      if (!fechaProgramada) return false
+      if (fechaInicio && fechaProgramada < fechaInicio) return false
+      if (fechaFin && fechaProgramada > fechaFin) return false
+      if (clinicaFiltro && r.clinica_id !== clinicaFiltro) return false
+      if (especieFiltro && normalizarLabel(r.especie) !== especieFiltro) return false
       if (tipoAnimalFiltro && (r.tipo_animal || "") !== tipoAnimalFiltro) return false
       return true
     })
@@ -352,51 +714,65 @@ export default function InformesContabilidadPage() {
   }, [registrosBasePeriodo])
 
   const registrosNoShow = useMemo(() => {
-    return registrosBasePeriodo.filter((r) => esNoShow(r))
-  }, [registrosBasePeriodo])
+    const hoy = hoyLocalISO()
+
+    return registrosAgendaPeriodo.filter((r) => {
+      const fechaProgramada = fechaSolo(r.fecha_programada)
+      if (!fechaProgramada) return false
+      if (esAptoFinanciero(r)) return false
+      if (esEstadoDescartadoParaAgenda(r)) return false
+
+      return esNoShow(r) || fechaProgramada < hoy
+    })
+  }, [registrosAgendaPeriodo])
+
+  const registrosProgramadosPendientes = useMemo(() => {
+    const hoy = hoyLocalISO()
+
+    return registrosAgendaPeriodo.filter((r) => {
+      const fechaProgramada = fechaSolo(r.fecha_programada)
+      if (!fechaProgramada) return false
+      if (esAptoFinanciero(r)) return false
+      if (esNoShow(r)) return false
+      if (esEstadoDescartadoParaAgenda(r)) return false
+
+      return fechaProgramada >= hoy
+    })
+  }, [registrosAgendaPeriodo])
 
   const filasDetalle = useMemo(() => {
-    const filas: FilaDetalle[] = registrosAptos
-      .filter((r) => {
-        const estadoFin = r.pagado ? "PAGADO" : "PENDIENTE"
-        if (estadoFiltro && estadoFin !== estadoFiltro) return false
-        return true
-      })
+    return registrosAptos
       .map((r) => {
-        const especie = (r.especie || "").trim().toLowerCase()
-        const sexo = (r.sexo || "").trim().toLowerCase()
-        const key = `${r.clinica_id}__${especie}__${sexo}`
+        const especieKey = normalizarTexto(r.especie)
+        const sexoKey = normalizarTexto(r.sexo)
+        const key = `${r.clinica_id}__${especieKey}__${sexoKey}`
         const tarifa = mapaTarifas[key] || 0
 
         const detalle = mapaDetallePorRegistro[r.id]
         const pago = detalle ? mapaPagoPorId[detalle.pago_id] : null
+        const estadoFinanciero: "PAGADO" | "PENDIENTE" = detalle && pago ? "PAGADO" : "PENDIENTE"
 
         return {
           registro_id: r.id,
           codigo: r.codigo || "",
-          fecha_cirugia: r.fecha_programada || "",
+          fecha_cirugia: fechaSolo(r.fecha_cirugia_realizada),
           fecha_pago: pago?.fecha_pago?.slice(0, 10) || (r.fecha_pago ? r.fecha_pago.slice(0, 10) : ""),
           clinica: r.clinica_id ? mapaClinicas[r.clinica_id] || "Sin clínica" : "Sin clínica",
           animal: r.nombre_animal || "",
-          especie: r.especie || "",
-          sexo: r.sexo || "",
+          especie: normalizarLabel(r.especie),
+          sexo: normalizarLabel(r.sexo),
           tipo_animal: r.tipo_animal || "",
           valor_unitario: detalle ? detalle.monto_unitario : tarifa,
           valor_total: detalle ? detalle.monto_total : tarifa,
-          estado_financiero: r.pagado ? "PAGADO" : "PENDIENTE",
+          estado_financiero: estadoFinanciero,
           observacion: pago?.observacion || "",
         }
       })
-
-    return filas
-  }, [
-    registrosAptos,
-    estadoFiltro,
-    mapaTarifas,
-    mapaDetallePorRegistro,
-    mapaPagoPorId,
-    mapaClinicas,
-  ])
+      .filter((f) => {
+        if (estadoFiltro && f.estado_financiero !== estadoFiltro) return false
+        return true
+      })
+  }, [registrosAptos, estadoFiltro, mapaTarifas, mapaDetallePorRegistro, mapaPagoPorId, mapaClinicas])
 
   const resumen = useMemo(() => {
     const totalEsterilizaciones = filasDetalle.length
@@ -409,9 +785,7 @@ export default function InformesContabilidadPage() {
       .reduce((acc, f) => acc + f.valor_total, 0)
 
     const clinicasPendientes = new Set(
-      filasDetalle
-        .filter((f) => f.estado_financiero === "PENDIENTE")
-        .map((f) => f.clinica)
+      filasDetalle.filter((f) => f.estado_financiero === "PENDIENTE").map((f) => f.clinica)
     ).size
 
     const promedio = totalEsterilizaciones > 0 ? totalGenerado / totalEsterilizaciones : 0
@@ -424,13 +798,22 @@ export default function InformesContabilidadPage() {
       clinicasPendientes,
       promedio,
       noShow: registrosNoShow.length,
-      programadosNoCerrados: registrosBasePeriodo.filter((r) => {
-  const estadoClinica = normalizarEstado(r.estado_clinica)
-  const estadoCita = normalizarEstado(r.estado_cita)
+     programadosNoCerrados: registros.filter((r) => {
+  const fechaProgramada = fechaSolo(r.fecha_programada)
+  if (!fechaProgramada) return false
+
+  if (fechaInicio && fechaProgramada < fechaInicio) return false
+  if (fechaFin && fechaProgramada > fechaFin) return false
+  if (clinicaFiltro && r.clinica_id !== clinicaFiltro) return false
+  if (especieFiltro && normalizarLabel(r.especie) !== especieFiltro) return false
+  if (tipoAnimalFiltro && (r.tipo_animal || "") !== tipoAnimalFiltro) return false
+
+  const estadoClinica = normalizarTexto(r.estado_clinica)
+  const estadoCita = normalizarTexto(r.estado_cita)
 
   return (
-    !esAptoFinanciero(r) &&
-    !esNoShow(r) &&
+    estadoClinica !== "apto" &&
+    estadoClinica !== "no show" &&
     estadoClinica !== "reprogramado" &&
     estadoClinica !== "rechazado" &&
     estadoClinica !== "no apto" &&
@@ -441,9 +824,19 @@ export default function InformesContabilidadPage() {
     estadoCita !== "fallecido" &&
     estadoCita !== "fallecio"
   )
-    }).length,
+}).length,
     }
-  }, [filasDetalle, registrosNoShow, registrosBasePeriodo])
+  }, [
+  filasDetalle,
+  registrosNoShow,
+  registrosProgramadosPendientes,
+  registros,
+  fechaInicio,
+  fechaFin,
+  clinicaFiltro,
+  especieFiltro,
+  tipoAnimalFiltro,
+])
 
   const porClinica = useMemo(() => {
     const mapa: Record<
@@ -455,8 +848,10 @@ export default function InformesContabilidadPage() {
         pagado: number
         pendiente: number
         ultimoPago: string
-        perros: number
-        gatos: number
+        perro_macho: number
+        perra_hembra: number
+        gato_macho: number
+        gata_hembra: number
       }
     > = {}
 
@@ -469,8 +864,10 @@ export default function InformesContabilidadPage() {
           pagado: 0,
           pendiente: 0,
           ultimoPago: "",
-          perros: 0,
-          gatos: 0,
+          perro_macho: 0,
+          perra_hembra: 0,
+          gato_macho: 0,
+          gata_hembra: 0,
         }
       }
 
@@ -478,8 +875,14 @@ export default function InformesContabilidadPage() {
       mapa[f.clinica].bruto += f.valor_total
       if (f.estado_financiero === "PAGADO") mapa[f.clinica].pagado += f.valor_total
       if (f.estado_financiero === "PENDIENTE") mapa[f.clinica].pendiente += f.valor_total
-      if (f.especie === "Perro") mapa[f.clinica].perros += 1
-      if (f.especie === "Gato") mapa[f.clinica].gatos += 1
+
+      const especie = normalizarTexto(f.especie)
+      const sexo = normalizarTexto(f.sexo)
+      if (especie === "perro" && sexo === "macho") mapa[f.clinica].perro_macho += 1
+      if (especie === "perro" && sexo === "hembra") mapa[f.clinica].perra_hembra += 1
+      if (especie === "gato" && sexo === "macho") mapa[f.clinica].gato_macho += 1
+      if (especie === "gato" && sexo === "hembra") mapa[f.clinica].gata_hembra += 1
+
       if (f.fecha_pago && (!mapa[f.clinica].ultimoPago || f.fecha_pago > mapa[f.clinica].ultimoPago)) {
         mapa[f.clinica].ultimoPago = f.fecha_pago
       }
@@ -497,18 +900,22 @@ export default function InformesContabilidadPage() {
         generado: number
         pagado: number
         pendiente: number
+        orden: string
       }
     > = {}
 
     filasDetalle.forEach((f) => {
       let chave = f.fecha_cirugia
+      let orden = f.fecha_cirugia
 
-      if (tipoPeriodo === "semanal") {
-        chave = f.fecha_cirugia.slice(0, 7) + " / semana"
-      }
-
-      if (tipoPeriodo === "mensual") {
-        chave = f.fecha_cirugia.slice(0, 7)
+      if (tipoPeriodo === "diario") {
+        const [yyyy, mm, dd] = f.fecha_cirugia.split("-")
+        chave = `${dd}/${mm}`
+        orden = `${yyyy}-${mm}-${dd}`
+      } else if (tipoPeriodo === "mensual" || tipoPeriodo === "semanal" || tipoPeriodo === "personalizado") {
+        const corte = obtenerCorteDomingo(f.fecha_cirugia)
+        chave = corte.label
+        orden = corte.orden
       }
 
       if (!mapa[chave]) {
@@ -518,6 +925,7 @@ export default function InformesContabilidadPage() {
           generado: 0,
           pagado: 0,
           pendiente: 0,
+          orden,
         }
       }
 
@@ -527,35 +935,32 @@ export default function InformesContabilidadPage() {
       if (f.estado_financiero === "PENDIENTE") mapa[chave].pendiente += f.valor_total
     })
 
-    return Object.values(mapa).sort((a, b) => a.periodo.localeCompare(b.periodo))
+    return Object.values(mapa).sort((a, b) => a.orden.localeCompare(b.orden))
   }, [filasDetalle, tipoPeriodo])
 
-  const maximoGrafico = useMemo(() => {
-    if (!porPeriodo.length) return 1
-    return Math.max(...porPeriodo.map((p) => p.generado), 1)
-  }, [porPeriodo])
+
 
   const resumenEspecies = useMemo(() => {
-    let perros = 0
-    let gatos = 0
-    let machos = 0
-    let hembras = 0
+    let perro_macho = 0
+    let perro_hembra = 0
+    let gato_macho = 0
+    let gato_hembra = 0
 
     filasDetalle.forEach((f) => {
-      if (f.especie === "Perro") perros += 1
-      if (f.especie === "Gato") gatos += 1
-      if (f.sexo === "Macho") machos += 1
-      if (f.sexo === "Hembra") hembras += 1
+      const especie = normalizarTexto(f.especie)
+      const sexo = normalizarTexto(f.sexo)
+
+      if (especie === "perro" && sexo === "macho") perro_macho += 1
+      if (especie === "perro" && sexo === "hembra") perro_hembra += 1
+      if (especie === "gato" && sexo === "macho") gato_macho += 1
+      if (especie === "gato" && sexo === "hembra") gato_hembra += 1
     })
 
-    return { perros, gatos, machos, hembras }
+    return { perro_macho, perro_hembra, gato_macho, gato_hembra }
   }, [filasDetalle])
 
   const subtituloReporte = useMemo(() => {
-    const clinicaTexto = clinicaFiltro
-      ? mapaClinicas[clinicaFiltro] || clinicaFiltro
-      : "Todas las clínicas"
-
+    const clinicaTexto = clinicaFiltro ? mapaClinicas[clinicaFiltro] || clinicaFiltro : "Todas las clínicas"
     return `Período: ${fechaInicio} a ${fechaFin} | Tipo: ${tipoPeriodo} | Clínica: ${clinicaTexto}`
   }, [fechaInicio, fechaFin, tipoPeriodo, clinicaFiltro, mapaClinicas])
 
@@ -569,10 +974,10 @@ export default function InformesContabilidadPage() {
       { Indicador: "Promedio por cirugía", Valor: resumen.promedio.toFixed(2) },
       { Indicador: "No Show", Valor: resumen.noShow },
       { Indicador: "Programados no cerrados", Valor: resumen.programadosNoCerrados },
-      { Indicador: "Perros", Valor: resumenEspecies.perros },
-      { Indicador: "Gatos", Valor: resumenEspecies.gatos },
-      { Indicador: "Machos", Valor: resumenEspecies.machos },
-      { Indicador: "Hembras", Valor: resumenEspecies.hembras },
+      { Indicador: "Perro macho", Valor: resumenEspecies.perro_macho },
+      { Indicador: "Perra hembra", Valor: resumenEspecies.perro_hembra },
+      { Indicador: "Gato macho", Valor: resumenEspecies.gato_macho },
+      { Indicador: "Gata hembra", Valor: resumenEspecies.gato_hembra },
     ]
   }, [resumen, resumenEspecies])
 
@@ -580,8 +985,10 @@ export default function InformesContabilidadPage() {
     const rows = porClinica.map((item) => ({
       "Clínica": item.clinica,
       "Animales": item.animales,
-      "Perros": item.perros,
-      "Gatos": item.gatos,
+      "Perro macho": item.perro_macho,
+      "Perra hembra": item.perra_hembra,
+      "Gato macho": item.gato_macho,
+      "Gata hembra": item.gata_hembra,
       "Bruto (Bs)": item.bruto.toFixed(2),
       "Pagado (Bs)": item.pagado.toFixed(2),
       "Pendiente (Bs)": item.pendiente.toFixed(2),
@@ -592,8 +999,10 @@ export default function InformesContabilidadPage() {
       rows.push({
         "Clínica": "TOTAL",
         "Animales": porClinica.reduce((acc, item) => acc + item.animales, 0),
-        "Perros": porClinica.reduce((acc, item) => acc + item.perros, 0),
-        "Gatos": porClinica.reduce((acc, item) => acc + item.gatos, 0),
+        "Perro macho": porClinica.reduce((acc, item) => acc + item.perro_macho, 0),
+        "Perra hembra": porClinica.reduce((acc, item) => acc + item.perra_hembra, 0),
+        "Gato macho": porClinica.reduce((acc, item) => acc + item.gato_macho, 0),
+        "Gata hembra": porClinica.reduce((acc, item) => acc + item.gata_hembra, 0),
         "Bruto (Bs)": porClinica.reduce((acc, item) => acc + item.bruto, 0).toFixed(2),
         "Pagado (Bs)": porClinica.reduce((acc, item) => acc + item.pagado, 0).toFixed(2),
         "Pendiente (Bs)": porClinica.reduce((acc, item) => acc + item.pendiente, 0).toFixed(2),
@@ -627,149 +1036,306 @@ export default function InformesContabilidadPage() {
   }, [porPeriodo])
 
   const detalleRows = useMemo<Record<string, string | number>[]>(() => {
-  const rows: Record<string, string | number>[] = filasDetalle.map((f) => ({
-    "Fecha cirugía": f.fecha_cirugia,
-    "Fecha pago": f.fecha_pago || "-",
-    "Clínica": f.clinica,
-    "Código": f.codigo,
-    "Animal": f.animal,
-    "Especie": f.especie,
-    "Sexo": f.sexo,
-    "Tipo animal": f.tipo_animal,
-    "Valor unitario (Bs)": f.valor_unitario.toFixed(2),
-    "Valor total (Bs)": f.valor_total.toFixed(2),
-    "Estado financiero": f.estado_financiero,
-    "Observación": f.observacion || "",
-  }))
+    const rows: Record<string, string | number>[] = filasDetalle.map((f) => ({
+      "Fecha cirugía real": f.fecha_cirugia,
+      "Fecha pago": f.fecha_pago || "-",
+      "Clínica": f.clinica,
+      "Código": f.codigo,
+      "Animal": f.animal,
+      "Especie": f.especie,
+      "Sexo": f.sexo,
+      "Tipo animal": f.tipo_animal,
+      "Valor unitario (Bs)": f.valor_unitario.toFixed(2),
+      "Valor total (Bs)": f.valor_total.toFixed(2),
+      "Estado financiero": f.estado_financiero,
+      "Observación": f.observacion || "",
+    }))
 
-  if (rows.length > 0) {
-    rows.push({
-      "Fecha cirugía": "",
-      "Fecha pago": "",
-      "Clínica": "TOTAL",
-      "Código": "",
-      "Animal": "",
-      "Especie": "",
-      "Sexo": "",
-      "Tipo animal": "",
-      "Valor unitario (Bs)": "",
-      "Valor total (Bs)": filasDetalle.reduce((acc, item) => acc + item.valor_total, 0).toFixed(2),
-      "Estado financiero": "",
-      "Observación": "",
-    })
-  }
+    if (rows.length > 0) {
+      rows.push({
+        "Fecha cirugía real": "",
+        "Fecha pago": "",
+        "Clínica": "TOTAL",
+        "Código": "",
+        "Animal": "",
+        "Especie": "",
+        "Sexo": "",
+        "Tipo animal": "",
+        "Valor unitario (Bs)": "",
+        "Valor total (Bs)": filasDetalle.reduce((acc, item) => acc + item.valor_total, 0).toFixed(2),
+        "Estado financiero": "",
+        "Observación": "",
+      })
+    }
 
-  return rows
-}, [filasDetalle])
-
+    return rows
+  }, [filasDetalle])
 
   function exportarCSVContabilidad() {
     descargarCSV("informe_contabilidad_detalle.csv", detalleRows)
   }
 
-  function exportarExcelCompleto() {
+  async function exportarExcelCompleto() {
     if (!filasDetalle.length) {
       alert("No hay datos para exportar.")
       return
     }
 
-    const wb = XLSX.utils.book_new()
+    const workbook = new ExcelJS.Workbook()
+    const verde = "FF0F6D6A"
+    const naranja = "FFF47C3C"
 
-    const wsResumen = prepararHojaConTitulo(
-      "Informe de Contabilidad — Resumen General",
-      subtituloReporte,
-      resumenGeneralRows
-    )
-    const wsClinicas = prepararHojaConTitulo(
-      "Informe de Contabilidad — Resumen por Clínica",
-      subtituloReporte,
-      resumenClinicasRows
-    )
-    const wsPeriodos = prepararHojaConTitulo(
-      "Informe de Contabilidad — Resumen por Período",
-      subtituloReporte,
-      resumenPeriodosRows
-    )
-    const wsDetalle = prepararHojaConTitulo(
-      "Informe de Contabilidad — Detalle Financiero",
-      subtituloReporte,
-      detalleRows
-    )
+    const wsResumen = workbook.addWorksheet("Resumen general", {
+      views: [{ state: "frozen", ySplit: 6 }],
+    })
 
-    wsResumen["!cols"] = autoWidthFromRows(resumenGeneralRows)
-    wsClinicas["!cols"] = autoWidthFromRows(resumenClinicasRows)
-    wsPeriodos["!cols"] = autoWidthFromRows(resumenPeriodosRows)
-    wsDetalle["!cols"] = autoWidthFromRows(detalleRows)
+    await agregarLogoSiExiste(workbook, wsResumen)
 
-    XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen general")
-    XLSX.utils.book_append_sheet(wb, wsClinicas, "Por clínica")
-    XLSX.utils.book_append_sheet(wb, wsPeriodos, "Por período")
-    XLSX.utils.book_append_sheet(wb, wsDetalle, "Detalle financiero")
+    wsResumen.mergeCells("B1:F1")
+    wsResumen.getCell("B1").value = "Informe de Contabilidad"
+    wsResumen.getCell("B1").font = { size: 18, bold: true, color: { argb: verde } }
 
-    XLSX.writeFile(
-      wb,
-      `informe_contabilidad_completo_${fechaInicio}_a_${fechaFin}.xlsx`
-    )
+    wsResumen.mergeCells("B2:F2")
+    wsResumen.getCell("B2").value = subtituloReporte
+
+    const headerResumen = wsResumen.getRow(6)
+    headerResumen.values = ["Indicador", "Valor"]
+    aplicarEstiloCabecera(headerResumen, verde)
+
+    resumenGeneralRows.forEach((row, index) => {
+      const nueva = wsResumen.addRow([row.Indicador, row.Valor])
+      aplicarEstiloFila(nueva, index % 2 === 0)
+    })
+
+    wsResumen.columns = [
+      { width: 30 },
+      { width: 20 },
+      { width: 14 },
+      { width: 14 },
+      { width: 14 },
+      { width: 14 },
+    ]
+
+    const wsClinicas = workbook.addWorksheet("Por clínica", {
+      views: [{ state: "frozen", ySplit: 4 }],
+    })
+
+    await agregarLogoSiExiste(workbook, wsClinicas)
+
+    const headersClinicas = Object.keys(resumenClinicasRows[0] || {})
+    wsClinicas.mergeCells(1, 2, 1, Math.max(headersClinicas.length, 2))
+    wsClinicas.getCell(1, 2).value = "Resumen por Clínica"
+    wsClinicas.getCell(1, 2).font = { size: 18, bold: true, color: { argb: verde } }
+    wsClinicas.mergeCells(2, 2, 2, Math.max(headersClinicas.length, 2))
+    wsClinicas.getCell(2, 2).value = subtituloReporte
+
+    const cabClinicas = wsClinicas.getRow(4)
+    cabClinicas.values = headersClinicas
+    aplicarEstiloCabecera(cabClinicas, verde)
+
+    resumenClinicasRows.forEach((item, index) => {
+      const rowData = item as Record<string, string | number>
+      const row = wsClinicas.addRow(headersClinicas.map((h) => rowData[h] ?? ""))
+      aplicarEstiloFila(row, index % 2 === 0)
+    })
+
+    wsClinicas.columns = headersClinicas.map((h) => ({
+      header: h,
+      key: h,
+      width: Math.min(Math.max(h.length + 4, 14), 22),
+    }))
+
+    const wsPeriodos = workbook.addWorksheet("Por período", {
+      views: [{ state: "frozen", ySplit: 4 }],
+    })
+
+    await agregarLogoSiExiste(workbook, wsPeriodos)
+
+    const headersPeriodos = Object.keys(resumenPeriodosRows[0] || {})
+    wsPeriodos.mergeCells(1, 2, 1, Math.max(headersPeriodos.length, 2))
+    wsPeriodos.getCell(1, 2).value = "Resumen por Período"
+    wsPeriodos.getCell(1, 2).font = { size: 18, bold: true, color: { argb: verde } }
+    wsPeriodos.mergeCells(2, 2, 2, Math.max(headersPeriodos.length, 2))
+    wsPeriodos.getCell(2, 2).value = subtituloReporte
+
+    const cabPeriodos = wsPeriodos.getRow(4)
+    cabPeriodos.values = headersPeriodos
+    aplicarEstiloCabecera(cabPeriodos, verde)
+
+    resumenPeriodosRows.forEach((item, index) => {
+      const rowData = item as Record<string, string | number>
+      const row = wsPeriodos.addRow(headersPeriodos.map((h) => rowData[h] ?? ""))
+      aplicarEstiloFila(row, index % 2 === 0)
+    })
+
+    wsPeriodos.columns = headersPeriodos.map((h) => ({
+      header: h,
+      key: h,
+      width: Math.min(Math.max(h.length + 4, 14), 22),
+    }))
+
+    const wsDetalle = workbook.addWorksheet("Detalle financiero", {
+      views: [{ state: "frozen", ySplit: 4 }],
+    })
+
+    await agregarLogoSiExiste(workbook, wsDetalle)
+
+    const headersDetalle = Object.keys(detalleRows[0] || {})
+    wsDetalle.mergeCells(1, 2, 1, Math.max(headersDetalle.length, 2))
+    wsDetalle.getCell(1, 2).value = "Detalle Financiero"
+    wsDetalle.getCell(1, 2).font = { size: 18, bold: true, color: { argb: verde } }
+    wsDetalle.mergeCells(2, 2, 2, Math.max(headersDetalle.length, 2))
+    wsDetalle.getCell(2, 2).value = subtituloReporte
+
+    const cabDetalle = wsDetalle.getRow(4)
+    cabDetalle.values = headersDetalle
+    aplicarEstiloCabecera(cabDetalle, naranja)
+
+    detalleRows.forEach((item, index) => {
+      const rowData = item as Record<string, string | number>
+      const row = wsDetalle.addRow(headersDetalle.map((h) => rowData[h] ?? ""))
+      aplicarEstiloFila(row, index % 2 === 0)
+    })
+
+    wsDetalle.columns = headersDetalle.map((h) => ({
+      header: h,
+      key: h,
+      width: Math.min(Math.max(h.length + 4, 14), 24),
+    }))
+
+    const bufferFinal = await workbook.xlsx.writeBuffer()
+    descargarExcelBuffer(bufferFinal, `informe_contabilidad_completo_${fechaInicio}_a_${fechaFin}.xlsx`)
   }
 
-  function exportarExcelResumenClinicas() {
+  async function exportarExcelResumenClinicas() {
     if (!resumenClinicasRows.length) {
       alert("No hay datos para exportar.")
       return
     }
 
-    const wb = XLSX.utils.book_new()
-    const ws = prepararHojaConTitulo(
-      "Resumen por Clínica",
-      subtituloReporte,
-      resumenClinicasRows
-    )
-    ws["!cols"] = autoWidthFromRows(resumenClinicasRows)
-    XLSX.utils.book_append_sheet(wb, ws, "Resumen por clínica")
-    XLSX.writeFile(
-      wb,
-      `resumen_clinicas_${fechaInicio}_a_${fechaFin}.xlsx`
-    )
+    const workbook = new ExcelJS.Workbook()
+    const ws = workbook.addWorksheet("Resumen por clínica", {
+      views: [{ state: "frozen", ySplit: 4 }],
+    })
+
+    const verde = "FF0F6D6A"
+
+    await agregarLogoSiExiste(workbook, ws)
+
+    ws.mergeCells("B1:J1")
+    ws.getCell("B1").value = "Resumen por Clínica"
+    ws.getCell("B1").font = { size: 18, bold: true, color: { argb: verde } }
+
+    ws.mergeCells("B2:J2")
+    ws.getCell("B2").value = subtituloReporte
+
+    const headers = Object.keys(resumenClinicasRows[0])
+    const headerRow = ws.getRow(4)
+    headerRow.values = headers
+    aplicarEstiloCabecera(headerRow, verde)
+
+    resumenClinicasRows.forEach((item, index) => {
+      const rowData = item as Record<string, string | number>
+      const row = ws.addRow(headers.map((h) => rowData[h] ?? ""))
+      aplicarEstiloFila(row, index % 2 === 0)
+    })
+
+    ws.columns = headers.map((h) => ({
+      header: h,
+      key: h,
+      width: Math.min(Math.max(h.length + 4, 14), 22),
+    }))
+
+    const bufferFinal = await workbook.xlsx.writeBuffer()
+    descargarExcelBuffer(bufferFinal, `resumen_clinicas_${fechaInicio}_a_${fechaFin}.xlsx`)
   }
 
-  function exportarExcelResumenPeriodos() {
+  async function exportarExcelResumenPeriodos() {
     if (!resumenPeriodosRows.length) {
       alert("No hay datos para exportar.")
       return
     }
 
-    const wb = XLSX.utils.book_new()
-    const ws = prepararHojaConTitulo(
-      "Resumen por Período",
-      subtituloReporte,
-      resumenPeriodosRows
-    )
-    ws["!cols"] = autoWidthFromRows(resumenPeriodosRows)
-    XLSX.utils.book_append_sheet(wb, ws, "Resumen por período")
-    XLSX.writeFile(
-      wb,
-      `resumen_periodos_${fechaInicio}_a_${fechaFin}.xlsx`
-    )
+    const workbook = new ExcelJS.Workbook()
+    const ws = workbook.addWorksheet("Resumen por período", {
+      views: [{ state: "frozen", ySplit: 4 }],
+    })
+
+    const verde = "FF0F6D6A"
+
+    await agregarLogoSiExiste(workbook, ws)
+
+    ws.mergeCells("B1:F1")
+    ws.getCell("B1").value = "Resumen por Período"
+    ws.getCell("B1").font = { size: 18, bold: true, color: { argb: verde } }
+
+    ws.mergeCells("B2:F2")
+    ws.getCell("B2").value = subtituloReporte
+
+    const headers = Object.keys(resumenPeriodosRows[0])
+    const headerRow = ws.getRow(4)
+    headerRow.values = headers
+    aplicarEstiloCabecera(headerRow, verde)
+
+    resumenPeriodosRows.forEach((item, index) => {
+      const rowData = item as Record<string, string | number>
+      const row = ws.addRow(headers.map((h) => rowData[h] ?? ""))
+      aplicarEstiloFila(row, index % 2 === 0)
+    })
+
+    ws.columns = headers.map((h) => ({
+      header: h,
+      key: h,
+      width: Math.min(Math.max(h.length + 4, 14), 22),
+    }))
+
+    const bufferFinal = await workbook.xlsx.writeBuffer()
+    descargarExcelBuffer(bufferFinal, `resumen_periodos_${fechaInicio}_a_${fechaFin}.xlsx`)
   }
 
-  function exportarExcelDetalleFinanciero() {
+  async function exportarExcelDetalleFinanciero() {
     if (!detalleRows.length) {
       alert("No hay datos para exportar.")
       return
     }
 
-    const wb = XLSX.utils.book_new()
-    const ws = prepararHojaConTitulo(
-      "Detalle Financiero",
-      subtituloReporte,
-      detalleRows
-    )
-    ws["!cols"] = autoWidthFromRows(detalleRows)
-    XLSX.utils.book_append_sheet(wb, ws, "Detalle financiero")
-    XLSX.writeFile(
-      wb,
-      `detalle_financiero_${fechaInicio}_a_${fechaFin}.xlsx`
-    )
+    const workbook = new ExcelJS.Workbook()
+    const ws = workbook.addWorksheet("Detalle financiero", {
+      views: [{ state: "frozen", ySplit: 4 }],
+    })
+
+    const verde = "FF0F6D6A"
+    const naranja = "FFF47C3C"
+
+    await agregarLogoSiExiste(workbook, ws)
+
+    const headers = Object.keys(detalleRows[0])
+
+    ws.mergeCells(1, 2, 1, headers.length)
+    ws.getCell(1, 2).value = "Detalle Financiero"
+    ws.getCell(1, 2).font = { size: 18, bold: true, color: { argb: verde } }
+
+    ws.mergeCells(2, 2, 2, headers.length)
+    ws.getCell(2, 2).value = subtituloReporte
+
+    const headerRow = ws.getRow(4)
+    headerRow.values = headers
+    aplicarEstiloCabecera(headerRow, naranja)
+
+    detalleRows.forEach((item, index) => {
+      const rowData = item as Record<string, string | number>
+      const row = ws.addRow(headers.map((h) => rowData[h] ?? ""))
+      aplicarEstiloFila(row, index % 2 === 0)
+    })
+
+    ws.columns = headers.map((h) => ({
+      header: h,
+      key: h,
+      width: Math.min(Math.max(h.length + 4, 14), 24),
+    }))
+
+    const bufferFinal = await workbook.xlsx.writeBuffer()
+    descargarExcelBuffer(bufferFinal, `detalle_financiero_${fechaInicio}_a_${fechaFin}.xlsx`)
   }
 
   function limpiarFiltros() {
@@ -795,9 +1361,7 @@ export default function InformesContabilidadPage() {
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-white">
-              Informe de contabilidad
-            </h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-white">Informe de contabilidad</h1>
             <p className="text-white/80">
               Control financiero de esterilizaciones realizadas, pagos y pendientes por clínica
             </p>
@@ -830,9 +1394,7 @@ export default function InformesContabilidadPage() {
         <div className="bg-white rounded-2xl shadow-xl p-5">
           <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Tipo de período
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de período</label>
               <select
                 value={tipoPeriodo}
                 onChange={(e) => setTipoPeriodo(e.target.value)}
@@ -846,9 +1408,7 @@ export default function InformesContabilidadPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Fecha inicial
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha inicial</label>
               <input
                 type="date"
                 value={fechaInicio}
@@ -858,9 +1418,7 @@ export default function InformesContabilidadPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Fecha final
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha final</label>
               <input
                 type="date"
                 value={fechaFin}
@@ -870,9 +1428,7 @@ export default function InformesContabilidadPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Clínica
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Clínica</label>
               <select
                 value={clinicaFiltro}
                 onChange={(e) => setClinicaFiltro(e.target.value)}
@@ -888,9 +1444,7 @@ export default function InformesContabilidadPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Estado financiero
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Estado financiero</label>
               <select
                 value={estadoFiltro}
                 onChange={(e) => setEstadoFiltro(e.target.value)}
@@ -903,9 +1457,7 @@ export default function InformesContabilidadPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Especie
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Especie</label>
               <select
                 value={especieFiltro}
                 onChange={(e) => setEspecieFiltro(e.target.value)}
@@ -913,15 +1465,15 @@ export default function InformesContabilidadPage() {
               >
                 <option value="">Todas</option>
                 {especiesDisponibles.map((e) => (
-                  <option key={e} value={e}>{e}</option>
+                  <option key={e} value={e}>
+                    {e}
+                  </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Tipo animal
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo animal</label>
               <select
                 value={tipoAnimalFiltro}
                 onChange={(e) => setTipoAnimalFiltro(e.target.value)}
@@ -929,7 +1481,9 @@ export default function InformesContabilidadPage() {
               >
                 <option value="">Todos</option>
                 {tiposAnimalDisponibles.map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
                 ))}
               </select>
             </div>
@@ -989,28 +1543,26 @@ export default function InformesContabilidadPage() {
 
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="bg-white rounded-2xl shadow-xl p-5">
-            <p className="text-sm text-gray-500 font-semibold">Perros</p>
-            <p className="text-3xl font-bold text-[#0F6D6A] mt-2">{resumenEspecies.perros}</p>
+            <p className="text-sm text-gray-500 font-semibold">Perro macho</p>
+            <p className="text-3xl font-bold text-[#0F6D6A] mt-2">{resumenEspecies.perro_macho}</p>
           </div>
           <div className="bg-white rounded-2xl shadow-xl p-5">
-            <p className="text-sm text-gray-500 font-semibold">Gatos</p>
-            <p className="text-3xl font-bold text-[#0F6D6A] mt-2">{resumenEspecies.gatos}</p>
+            <p className="text-sm text-gray-500 font-semibold">Perra hembra</p>
+            <p className="text-3xl font-bold text-[#0F6D6A] mt-2">{resumenEspecies.perro_hembra}</p>
           </div>
           <div className="bg-white rounded-2xl shadow-xl p-5">
-            <p className="text-sm text-gray-500 font-semibold">Machos</p>
-            <p className="text-3xl font-bold text-[#0F6D6A] mt-2">{resumenEspecies.machos}</p>
+            <p className="text-sm text-gray-500 font-semibold">Gato macho</p>
+            <p className="text-3xl font-bold text-[#0F6D6A] mt-2">{resumenEspecies.gato_macho}</p>
           </div>
           <div className="bg-white rounded-2xl shadow-xl p-5">
-            <p className="text-sm text-gray-500 font-semibold">Hembras</p>
-            <p className="text-3xl font-bold text-[#0F6D6A] mt-2">{resumenEspecies.hembras}</p>
+            <p className="text-sm text-gray-500 font-semibold">Gata hembra</p>
+            <p className="text-3xl font-bold text-[#0F6D6A] mt-2">{resumenEspecies.gato_hembra}</p>
           </div>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-6">
           <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-            <h2 className="text-xl font-bold text-[#0F6D6A]">
-              Evolución financiera
-            </h2>
+            <h2 className="text-xl font-bold text-[#0F6D6A]">Evolución financiera</h2>
 
             <button
               onClick={exportarExcelResumenPeriodos}
@@ -1020,39 +1572,20 @@ export default function InformesContabilidadPage() {
             </button>
           </div>
 
-          <div className="space-y-3">
-            {porPeriodo.length > 0 ? (
-              porPeriodo.map((item, index) => {
-                const largura = `${(item.generado / maximoGrafico) * 100}%`
-                return (
-                  <div key={index}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-semibold text-gray-700">{item.periodo}</span>
-                      <span className="text-gray-600">
-                        {formatearMoneda(item.generado)} generado / {formatearMoneda(item.pagado)} pagado
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                      <div
-                        className="bg-[#F47C3C] h-4 rounded-full"
-                        style={{ width: largura }}
-                      />
-                    </div>
-                  </div>
-                )
-              })
-            ) : (
-              <p className="text-gray-500">No hay datos para el período seleccionado.</p>
-            )}
-          </div>
+          <GraficoLineaFinanciera
+            data={porPeriodo.map((item) => ({
+              periodo: item.periodo,
+              generado: item.generado,
+              pagado: item.pagado,
+              pendiente: item.pendiente,
+            }))}
+          />
         </div>
 
         <div className="grid xl:grid-cols-2 gap-6">
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-              <h2 className="text-xl font-bold text-[#0F6D6A]">
-                Resumen por clínica
-              </h2>
+              <h2 className="text-xl font-bold text-[#0F6D6A]">Resumen por clínica</h2>
 
               <button
                 onClick={exportarExcelResumenClinicas}
@@ -1068,8 +1601,10 @@ export default function InformesContabilidadPage() {
                   <tr className="text-left text-gray-500 border-b">
                     <th className="py-2 pr-3">Clínica</th>
                     <th className="py-2 pr-3">Anim.</th>
-                    <th className="py-2 pr-3">Perros</th>
-                    <th className="py-2 pr-3">Gatos</th>
+                    <th className="py-2 pr-3">P. macho</th>
+                    <th className="py-2 pr-3">P. hembra</th>
+                    <th className="py-2 pr-3">G. macho</th>
+                    <th className="py-2 pr-3">G. hembra</th>
                     <th className="py-2 pr-3">Bruto</th>
                     <th className="py-2 pr-3">Pagado</th>
                     <th className="py-2 pr-3">Pend.</th>
@@ -1081,8 +1616,10 @@ export default function InformesContabilidadPage() {
                     <tr key={index} className="border-b">
                       <td className="py-2 pr-3 font-semibold">{item.clinica}</td>
                       <td className="py-2 pr-3">{item.animales}</td>
-                      <td className="py-2 pr-3">{item.perros}</td>
-                      <td className="py-2 pr-3">{item.gatos}</td>
+                      <td className="py-2 pr-3">{item.perro_macho}</td>
+                      <td className="py-2 pr-3">{item.perra_hembra}</td>
+                      <td className="py-2 pr-3">{item.gato_macho}</td>
+                      <td className="py-2 pr-3">{item.gata_hembra}</td>
                       <td className="py-2 pr-3">{formatearMoneda(item.bruto)}</td>
                       <td className="py-2 pr-3 text-green-600 font-semibold">{formatearMoneda(item.pagado)}</td>
                       <td className="py-2 pr-3 text-red-600 font-semibold">{formatearMoneda(item.pendiente)}</td>
@@ -1092,7 +1629,7 @@ export default function InformesContabilidadPage() {
 
                   {porClinica.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="py-6 text-center text-gray-500">
+                      <td colSpan={10} className="py-6 text-center text-gray-500">
                         No hay datos
                       </td>
                     </tr>
@@ -1104,9 +1641,7 @@ export default function InformesContabilidadPage() {
 
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-              <h2 className="text-xl font-bold text-[#0F6D6A]">
-                Resumen por período
-              </h2>
+              <h2 className="text-xl font-bold text-[#0F6D6A]">Resumen por período</h2>
 
               <button
                 onClick={exportarExcelResumenPeriodos}
@@ -1153,9 +1688,7 @@ export default function InformesContabilidadPage() {
 
         <div className="bg-white rounded-2xl shadow-xl p-6">
           <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-            <h2 className="text-xl font-bold text-[#0F6D6A]">
-              Detalle financiero
-            </h2>
+            <h2 className="text-xl font-bold text-[#0F6D6A]">Detalle financiero</h2>
 
             <button
               onClick={exportarExcelDetalleFinanciero}
@@ -1225,4 +1758,12 @@ export default function InformesContabilidadPage() {
       </div>
     </div>
   )
+}
+
+function detalhesOrdenados(detalles: PagoDetalle[]) {
+  return [...detalles].sort((a, b) => {
+    const dataA = new Date(a.created_at || 0).getTime()
+    const dataB = new Date(b.created_at || 0).getTime()
+    return dataB - dataA
+  })
 }

@@ -166,6 +166,11 @@ export default function TransferenciaNuevoDetallePage() {
   async function confirmarTransferencia() {
     if (!transferencia) return
 
+    if (transferencia.estado !== "pendiente") {
+      alert("Solo se pueden confirmar transferencias pendientes")
+      return
+    }
+
     const ok = window.confirm(
       "¿Desea confirmar esta transferencia? Esto descontará del almacén origen, ingresará a la clínica y registrará los movimientos."
     )
@@ -194,6 +199,11 @@ export default function TransferenciaNuevoDetallePage() {
 
   async function cancelarTransferencia() {
     if (!transferencia) return
+
+    if (transferencia.estado !== "pendiente") {
+      alert("Solo se pueden cancelar transferencias pendientes")
+      return
+    }
 
     const ok = window.confirm(
       "¿Desea cancelar esta transferencia? El estado cambiará a cancelada."
@@ -263,6 +273,10 @@ export default function TransferenciaNuevoDetallePage() {
     )
   }
 
+  const esPendiente = transferencia.estado === "pendiente"
+  const esConfirmada = transferencia.estado === "confirmada"
+  const esCancelada = transferencia.estado === "cancelada"
+
   return (
     <>
       <div className="min-h-screen bg-[#0F6D6A] p-6 md:p-8 print:bg-white print:p-0">
@@ -294,6 +308,15 @@ export default function TransferenciaNuevoDetallePage() {
                 Volver
               </Link>
 
+              {esPendiente && (
+                <Link
+                  href={`/admin/inventario/transferencias-nuevo/${transferencia.id}/editar`}
+                  className="bg-[#F47C3C] text-white px-4 py-2 rounded-xl font-bold shadow hover:bg-[#db6d31] transition"
+                >
+                  Editar transferencia
+                </Link>
+              )}
+
               <button
                 type="button"
                 onClick={imprimirHoja}
@@ -319,9 +342,9 @@ export default function TransferenciaNuevoDetallePage() {
 
                   <div
                     className={`inline-flex px-4 py-2 rounded-full text-sm font-bold w-fit ${
-                      transferencia.estado === "confirmada"
+                      esConfirmada
                         ? "bg-green-100 text-green-700"
-                        : transferencia.estado === "cancelada"
+                        : esCancelada
                         ? "bg-red-100 text-red-700"
                         : "bg-yellow-100 text-yellow-700"
                     }`}
@@ -501,7 +524,8 @@ export default function TransferenciaNuevoDetallePage() {
                       value={recibidoPor}
                       onChange={(e) => setRecibidoPor(e.target.value)}
                       placeholder="Nombre de quien recibe"
-                      className="w-full border rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0F6D6A]"
+                      disabled={!esPendiente}
+                      className="w-full border rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0F6D6A] disabled:bg-gray-100 disabled:text-gray-500"
                     />
                   </div>
 
@@ -514,9 +538,17 @@ export default function TransferenciaNuevoDetallePage() {
                       onChange={(e) => setObservaciones(e.target.value)}
                       rows={5}
                       placeholder="Observaciones de entrega, notas o aclaraciones..."
-                      className="w-full border rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0F6D6A] resize-none"
+                      disabled={!esPendiente}
+                      className="w-full border rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0F6D6A] resize-none disabled:bg-gray-100 disabled:text-gray-500"
                     />
                   </div>
+
+                  {!esPendiente && (
+                    <div className="rounded-2xl bg-gray-50 border border-gray-200 p-4 text-sm text-gray-600">
+                      Esta transferencia ya no se puede editar ni modificar porque su
+                      estado actual es <span className="font-bold">{transferencia.estado}</span>.
+                    </div>
+                  )}
 
                   <div className="grid gap-3 pt-2">
                     <button
@@ -530,15 +562,17 @@ export default function TransferenciaNuevoDetallePage() {
                     <button
                       type="button"
                       onClick={confirmarTransferencia}
-                      disabled={procesando || transferencia.estado === "confirmada"}
+                      disabled={procesando || !esPendiente}
                       className={`w-full py-3 rounded-2xl font-bold text-white transition ${
-                        procesando || transferencia.estado === "confirmada"
+                        procesando || !esPendiente
                           ? "bg-gray-400 cursor-not-allowed"
                           : "bg-green-600 hover:bg-green-700"
                       }`}
                     >
-                      {transferencia.estado === "confirmada"
+                      {esConfirmada
                         ? "Transferencia confirmada"
+                        : esCancelada
+                        ? "Transferencia cancelada"
                         : procesando
                         ? "Confirmando..."
                         : "Confirmar transferencia"}
@@ -547,16 +581,14 @@ export default function TransferenciaNuevoDetallePage() {
                     <button
                       type="button"
                       onClick={cancelarTransferencia}
-                      disabled={procesando || transferencia.estado === "cancelada"}
+                      disabled={procesando || !esPendiente}
                       className={`w-full py-3 rounded-2xl font-bold transition ${
-                        procesando || transferencia.estado === "cancelada"
+                        procesando || !esPendiente
                           ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                           : "bg-red-50 text-red-700 hover:bg-red-100"
                       }`}
                     >
-                      {transferencia.estado === "cancelada"
-                        ? "Transferencia cancelada"
-                        : "Cancelar transferencia"}
+                      {esCancelada ? "Transferencia cancelada" : "Cancelar transferencia"}
                     </button>
                   </div>
                 </div>

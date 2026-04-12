@@ -1,24 +1,49 @@
 "use client"
 
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 
+type PedidosResumen = {
+  enviados: number
+  revisados: number
+  aprobados: number
+  pendientes: number
+}
+
+type DashboardCard = {
+  href: string
+  icon: string
+  title: string
+  description: string
+  highlight?: string
+  highlightVariant?: "orange" | "green" | "teal" | "whatsapp"
+  borderVariant?: "orange" | "teal" | "green" | "default"
+  extraLines?: string[]
+}
+
 export default function AdminDashboard() {
   const router = useRouter()
+
+  const [pendentes, setPendentes] = useState(0)
+  const [citasHoy, setCitasHoy] = useState(0)
+  const [pedidosResumen, setPedidosResumen] = useState<PedidosResumen>({
+    enviados: 0,
+    revisados: 0,
+    aprobados: 0,
+    pendientes: 0,
+  })
 
   const logout = async () => {
     await fetch("/api/admin/logout", { method: "POST" })
     window.location.href = "/admin/login"
   }
 
-  const [pendentes, setPendentes] = useState(0)
-  const [citasHoy, setCitasHoy] = useState(0)
-
   useEffect(() => {
     carregarPendentes()
     carregarCitasHoy()
+    carregarPedidos()
   }, [])
 
   function getLocalDateString() {
@@ -29,18 +54,19 @@ export default function AdminDashboard() {
   }
 
   const carregarPendentes = async () => {
-    const { count, error } = await supabase
-      .from("solicitudes")
-      .select("*", { count: "exact", head: true })
-      .eq("estado", "Pendiente")
+  try {
+    const res = await fetch("/api/solicitudes?pagina=1")
+    const json = await res.json()
 
-    if (error) {
-      console.log("Error cargando pendientes:", error)
-      return
+    if (!res.ok || !json.ok) {
+      throw new Error(json.error || "Error cargando pendientes")
     }
 
-    setPendentes(count || 0)
+    setPendentes(json.total || 0)
+  } catch (error) {
+    console.error("Error cargando pendientes:", error)
   }
+}
 
   const carregarCitasHoy = async () => {
     const hoy = getLocalDateString()
@@ -58,90 +84,239 @@ export default function AdminDashboard() {
     setCitasHoy(count || 0)
   }
 
+  const carregarPedidos = async () => {
+    const { data, error } = await supabase
+      .from("pedidos_clinicas")
+      .select("estado")
+
+    if (error) {
+      console.log("Error cargando pedidos clínicos:", error)
+      return
+    }
+
+    let enviados = 0
+    let revisados = 0
+    let aprobados = 0
+
+    ;(data || []).forEach((pedido: any) => {
+      const estado = String(pedido?.estado || "").trim().toLowerCase()
+
+      if (estado === "enviado") enviados++
+      if (estado === "revisado") revisados++
+      if (estado === "aprobado") aprobados++
+    })
+
+    setPedidosResumen({
+      enviados,
+      revisados,
+      aprobados,
+      pendientes: enviados + revisados + aprobados,
+    })
+  }
+
+  const cards = useMemo<DashboardCard[]>(() => {
+    return [
+      {
+        href: "/admin/inventario/pedidos-clinicas",
+        icon: "📦",
+        title: "Pedidos Clínicas",
+        description: "Revisión, aprobación y gestión de pedidos.",
+        highlight: `Pendientes: ${pedidosResumen.pendientes}`,
+        highlightVariant: pedidosResumen.pendientes > 0 ? "orange" : "green",
+        borderVariant: "orange",
+        extraLines: [
+          `Enviados: ${pedidosResumen.enviados}`,
+          `Revisados: ${pedidosResumen.revisados}`,
+          `Aprobados: ${pedidosResumen.aprobados}`,
+        ],
+      },
+      {
+        href: "/admin/clinicas",
+        icon: "🏥",
+        title: "Clínicas",
+        description: "Gestionar clínicas y configuración general.",
+      },
+      {
+        href: "/admin/registros",
+        icon: "📋",
+        title: "Registros",
+        description: "Animales registrados y seguimiento clínico.",
+      },
+      {
+        href: "/admin/solicitudes",
+        icon: "📨",
+        title: "Solicitudes",
+        description: "Revisar solicitudes pendientes del público.",
+        highlight:
+          pendentes > 0 ? `Pendientes: ${pendentes}` : "Sin pendientes",
+        highlightVariant: pendentes > 0 ? "orange" : "green",
+      },
+      {
+        href: "/admin/cupos",
+        icon: "📊",
+        title: "Cupos",
+        description: "Cupos por clínica, horarios y disponibilidad.",
+      },
+      {
+        href: "/admin/citas",
+        icon: "🗓️",
+        title: "Citas",
+        description: "Programación diaria por clínica.",
+        highlight: `Hoy: ${citasHoy}`,
+        highlightVariant: "orange",
+        borderVariant: "orange",
+      },
+      {
+        href: "/admin/inventario",
+        icon: "📦",
+        title: "Inventario",
+        description: "Control de stock, movimientos y almacenes.",
+      },
+      {
+        href: "/admin/informes",
+        icon: "📈",
+        title: "Informes",
+        description: "Reportes de gestión y estadísticas.",
+        borderVariant: "teal",
+      },
+      {
+        href: "/admin/contabilidad",
+        icon: "💼",
+        title: "Contabilidad",
+        description: "Compras, pagos y seguimiento financiero.",
+      },
+      {
+        href: "/admin/whatsapp",
+        icon: "💬",
+        title: "WhatsApp",
+        description: "Historial, pendientes y mensajes automáticos.",
+        borderVariant: "green",
+        highlight: "Mensajes y seguimiento",
+        highlightVariant: "whatsapp",
+      },
+      {
+        href: "/admin/adopciones",
+        icon: "🐾",
+        title: "Adopciones",
+        description: "Publicaciones y gestión de adopciones.",
+        highlight: "Activas",
+        highlightVariant: "orange",
+      },
+    ]
+  }, [citasHoy, pedidosResumen, pendentes])
+
   return (
-    <div className="min-h-screen bg-[#02686A] flex flex-col items-center">
-      <button
-        onClick={logout}
-        className="absolute top-6 right-6 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold"
-      >
-        Cerrar sesión
-      </button>
+    <div className="min-h-screen bg-[#02686A] px-4 py-6 md:px-6 md:py-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-white/5 px-6 py-6 shadow-[0_20px_60px_rgba(0,0,0,0.14)] backdrop-blur-sm md:px-8 md:py-7">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(244,124,60,0.16),transparent_32%),radial-gradient(circle_at_left,rgba(255,255,255,0.08),transparent_25%)]" />
 
-      <div className="mt-10 mb-20 flex justify-center">
-        <img src="/logo.png" className="h-40" alt="Logo Rugimos" />
-      </div>
+          <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 shadow-inner ring-1 ring-white/10">
+                <img src="/logo.png" className="h-12 w-12 object-contain" alt="Logo Rugimos" />
+              </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-5xl px-8 pb-16">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/14 px-3 py-1 text-xs font-semibold text-white/90">
+                  <span>Fundación Rugimos</span>
+                  <span className="opacity-60">/</span>
+                  <span>Panel administrativo</span>
+                </div>
 
-        <Link href="/admin/clinicas">
-          <div className="bg-white rounded-2xl shadow-xl p-8 hover:scale-105 transition cursor-pointer">
-            <h2 className="text-xl font-bold text-[#02686A]">🏥 Clínicas</h2>
-            <p className="text-gray-600 mt-2">Gestionar clínicas</p>
+                <h1 className="mt-3 text-3xl font-bold tracking-tight text-white md:text-4xl">
+                  Panel principal
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm text-white/80 md:text-base">
+                  Sistema administrativo. 
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={logout}
+              className="self-start rounded-2xl bg-red-500 px-4 py-2.5 text-sm font-bold text-white shadow-lg transition hover:scale-[1.02] hover:bg-red-600 md:self-auto"
+            >
+              Cerrar sesión
+            </button>
           </div>
-        </Link>
+        </div>
 
-        <Link href="/admin/registros">
-          <div className="bg-white rounded-2xl shadow-xl p-8 hover:scale-105 transition cursor-pointer">
-            <h2 className="text-xl font-bold text-[#02686A]">📋 Registros</h2>
-            <p className="text-gray-600 mt-2">Animales registrados</p>
-          </div>
-        </Link>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {cards.map((card) => (
+            <Link key={card.href} href={card.href}>
+              <div
+                className={`group flex min-h-[210px] flex-col justify-between rounded-[28px] border bg-white p-6 shadow-[0_16px_40px_rgba(0,0,0,0.12)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_22px_50px_rgba(0,0,0,0.16)] ${
+                  card.borderVariant === "orange"
+                    ? "border-[#F47C3C]/70"
+                    : card.borderVariant === "teal"
+                    ? "border-[#02686A]/35"
+                    : card.borderVariant === "green"
+                    ? "border-[#25D366]/55"
+                    : "border-white/70"
+                }`}
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F6FBFB] text-xl ring-1 ring-[#02686A]/10 transition group-hover:scale-105">
+                        {card.icon}
+                      </div>
 
-        <Link href="/admin/solicitudes">
-          <div className="bg-white rounded-2xl shadow-xl p-8 hover:scale-105 transition cursor-pointer">
-            <h2 className="text-xl font-bold text-[#02686A]">📨 Solicitudes</h2>
+                      <div className="min-w-0">
+                        <h2 className="text-xl font-bold text-[#02686A]">
+                          {card.title}
+                        </h2>
+                        <p className="mt-2 text-sm leading-6 text-gray-600">
+                          {card.description}
+                        </p>
+                      </div>
+                    </div>
 
-            {pendentes > 0 ? (
-              <span className="inline-block mt-4 bg-[#F47C3C] text-white px-4 py-2 rounded-full">
-                Pendientes: {pendentes}
-              </span>
-            ) : (
-              <span className="inline-block mt-4 bg-green-600 text-white px-4 py-2 rounded-full">
-                Sin pendientes
-              </span>
-            )}
-          </div>
-        </Link>
+                    <div className="rounded-full bg-[#F7FAFA] px-3 py-1 text-[11px] font-semibold text-[#02686A] ring-1 ring-[#02686A]/10">
+                      Abrir
+                    </div>
+                  </div>
 
-        <Link href="/admin/cupos">
-          <div className="bg-white rounded-2xl shadow-xl p-8 hover:scale-105 transition cursor-pointer">
-            <h2 className="text-xl font-bold text-[#02686A]">📊 Cupos</h2>
-            <p className="text-gray-600 mt-2">Cupos por clínica</p>
-          </div>
-        </Link>
+                  {card.extraLines && card.extraLines.length > 0 && (
+                    <div className="mt-5 grid grid-cols-3 gap-2">
+                      {card.extraLines.map((line) => (
+                        <div
+                          key={line}
+                          className="rounded-2xl bg-[#F8FAFA] px-3 py-3 text-center text-xs font-semibold text-gray-700 ring-1 ring-[#02686A]/8"
+                        >
+                          {line}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-        <Link href="/admin/pagos">
-          <div className="bg-white rounded-2xl shadow-xl p-8 hover:scale-105 transition cursor-pointer">
-            <h2 className="text-xl font-bold text-[#02686A]">💰 Pagos clínicas</h2>
-            <p className="text-gray-600 mt-2">Control de pagos semanales</p>
-          </div>
-        </Link>
+                <div className="mt-5 flex items-center justify-between gap-3">
+                  <span
+                    className={`inline-flex rounded-full px-4 py-2 text-sm font-bold ${
+                      card.highlightVariant === "orange"
+                        ? "bg-[#F47C3C] text-white"
+                        : card.highlightVariant === "green"
+                        ? "bg-green-600 text-white"
+                        : card.highlightVariant === "teal"
+                        ? "bg-[#02686A] text-white"
+                        : card.highlightVariant === "whatsapp"
+                        ? "bg-[#25D366] text-white"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {card.highlight || "Ir al módulo"}
+                  </span>
 
-        <Link href="/admin/citas">
-          <div className="bg-white rounded-2xl shadow-xl p-8 hover:scale-105 transition cursor-pointer border-2 border-[#F47C3C]">
-            <h2 className="text-xl font-bold text-[#02686A]">🗓️ Citas</h2>
-            <p className="text-gray-600 mt-2">Programación diaria por clínica</p>
-
-            <span className="inline-block mt-4 bg-[#F47C3C] text-white px-4 py-2 rounded-full">
-              Hoy: {citasHoy}
-            </span>
-          </div>
-        </Link>
-
-        <Link href="/admin/inventario">
-          <div className="bg-white rounded-2xl shadow-xl p-8 hover:scale-105 transition cursor-pointer">
-            <h2 className="text-xl font-bold text-[#02686A]">📦 Inventario</h2>
-            <p className="text-gray-600 mt-2">Control de stock y movimientos</p>
-          </div>
-        </Link>
-
-        <Link href="/admin/informes">
-          <div className="bg-white rounded-2xl shadow-xl p-8 hover:scale-105 transition cursor-pointer border-2 border-[#02686A]">
-            <h2 className="text-xl font-bold text-[#02686A]">📈 Informes</h2>
-            <p className="text-gray-600 mt-2">Reportes de gestión y estadísticas</p>
-          </div>
-        </Link>
-
+                  <span className="text-xs font-semibold text-gray-400 transition group-hover:text-[#02686A]">
+                    Ver más →
+                  </span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   )

@@ -9,6 +9,7 @@ type Registro = {
   codigo?: string | null
   clinica_id: string | null
   fecha_programada: string | null
+  fecha_cirugia_realizada?: string | null
   estado_cita?: string | null
   estado_clinica?: string | null
   especie?: string | null
@@ -122,6 +123,46 @@ function inicioMesISO() {
   return d.toISOString().slice(0, 10)
 }
 
+function fechaSolo(valor?: string | null) {
+  return valor ? valor.slice(0, 10) : ""
+}
+
+function fechaBaseGestion(registro: Registro) {
+  if (esRealizadoGestion(registro) || esFallecido(registro)) {
+    return fechaSolo(registro.fecha_cirugia_realizada) || registro.fecha_programada || ""
+  }
+
+  return registro.fecha_programada || ""
+}
+
+async function fetchAllRows<T>(
+  table: string,
+  selectClause: string,
+  build?: (query: any) => any,
+  pageSize = 1000
+): Promise<T[]> {
+  let from = 0
+  let allRows: T[] = []
+
+  while (true) {
+    let query = supabase.from(table).select(selectClause)
+
+    if (build) query = build(query)
+
+    const { data, error } = await query.range(from, from + pageSize - 1)
+
+    if (error) throw error
+
+    const rows = (data || []) as T[]
+    allRows = allRows.concat(rows)
+
+    if (rows.length < pageSize) break
+    from += pageSize
+  }
+
+  return allRows
+}
+
 function descargarCSV(nombreArchivo: string, filas: Record<string, any>[]) {
   if (!filas.length) {
     alert("No hay datos para exportar.")
@@ -170,34 +211,27 @@ export default function InformesGestionPage() {
   async function cargarDatos() {
     setCargando(true)
 
-    const [registrosRes, clinicasRes] = await Promise.all([
-      supabase
-        .from("registros")
-        .select(
-          "id,codigo,clinica_id,fecha_programada,estado_cita,estado_clinica,especie,sexo,tipo_animal,nombre_animal,nombre_responsable"
+    try {
+      const [registrosData, clinicasData] = await Promise.all([
+        fetchAllRows<Registro>(
+          "registros",
+          "id,codigo,clinica_id,fecha_programada,fecha_cirugia_realizada,estado_cita,estado_clinica,especie,sexo,tipo_animal,nombre_animal,nombre_responsable"
         ),
+        fetchAllRows<Clinica>(
+          "clinicas",
+          "id,nome",
+          (q) => q.order("nome", { ascending: true })
+        ),
+      ])
 
-      supabase
-        .from("clinicas")
-        .select("id,nome")
-        .order("nome", { ascending: true }),
-    ])
-
-    if (registrosRes.error) {
-      console.log("Error registros:", registrosRes.error)
+      setRegistros(registrosData)
+      setClinicas(clinicasData)
+    } catch (error) {
+      console.log("Error cargando informe de gestión:", error)
+      alert("No se pudo cargar el informe de gestión.")
+    } finally {
       setCargando(false)
-      return
     }
-
-    if (clinicasRes.error) {
-      console.log("Error clinicas:", clinicasRes.error)
-      setCargando(false)
-      return
-    }
-
-    setRegistros((registrosRes.data as Registro[]) || [])
-    setClinicas((clinicasRes.data as Clinica[]) || [])
-    setCargando(false)
   }
 
   useEffect(() => {
@@ -235,9 +269,8 @@ export default function InformesGestionPage() {
 
   const registrosFiltrados = useMemo(() => {
     return registros.filter((r) => {
-      if (!r.fecha_programada) return false
-
-      const fecha = r.fecha_programada
+      const fecha = fechaBaseGestion(r)
+      if (!fecha) return false
 
       if (fechaInicio && fecha < fechaInicio) return false
       if (fechaFin && fecha > fechaFin) return false
@@ -295,15 +328,10 @@ export default function InformesGestionPage() {
 
   const resumen = useMemo(() => {
     const realizados = registrosFiltrados.filter((r) => esRealizadoGestion(r)).length
-
     const programados = registrosFiltrados.filter((r) => esProgramado(r)).length
-
     const cancelados = registrosFiltrados.filter((r) => esCancelado(r)).length
-
     const reprogramados = registrosFiltrados.filter((r) => esReprogramado(r)).length
-
     const rechazados = registrosFiltrados.filter((r) => esRechazadoONoApto(r)).length
-
     const fallecidos = registrosFiltrados.filter((r) => esFallecido(r)).length
 
     const clinicasActivas = new Set(
@@ -384,11 +412,12 @@ export default function InformesGestionPage() {
     > = {}
 
     registrosFiltrados.forEach((r) => {
-      if (!r.fecha_programada) return
+      const fecha = fechaBaseGestion(r)
+      if (!fecha) return
 
-      if (!conteo[r.fecha_programada]) {
-        conteo[r.fecha_programada] = {
-          fecha: r.fecha_programada,
+      if (!conteo[fecha]) {
+        conteo[fecha] = {
+          fecha,
           realizados: 0,
           programados: 0,
           cancelados: 0,
@@ -399,14 +428,14 @@ export default function InformesGestionPage() {
         }
       }
 
-      conteo[r.fecha_programada].total += 1
+      conteo[fecha].total += 1
 
-      if (esRealizadoGestion(r)) conteo[r.fecha_programada].realizados += 1
-      if (esProgramado(r)) conteo[r.fecha_programada].programados += 1
-      if (esCancelado(r)) conteo[r.fecha_programada].cancelados += 1
-      if (esReprogramado(r)) conteo[r.fecha_programada].reprogramados += 1
-      if (esRechazadoONoApto(r)) conteo[r.fecha_programada].rechazados += 1
-      if (esFallecido(r)) conteo[r.fecha_programada].fallecidos += 1
+      if (esRealizadoGestion(r)) conteo[fecha].realizados += 1
+      if (esProgramado(r)) conteo[fecha].programados += 1
+      if (esCancelado(r)) conteo[fecha].cancelados += 1
+      if (esReprogramado(r)) conteo[fecha].reprogramados += 1
+      if (esRechazadoONoApto(r)) conteo[fecha].rechazados += 1
+      if (esFallecido(r)) conteo[fecha].fallecidos += 1
     })
 
     return Object.values(conteo).sort((a, b) => a.fecha.localeCompare(b.fecha))
@@ -430,7 +459,9 @@ export default function InformesGestionPage() {
   function exportarRegistrosCSV() {
     const filas = registrosFiltrados.map((r) => ({
       codigo: r.codigo || "",
+      fecha_base: fechaBaseGestion(r),
       fecha_programada: r.fecha_programada || "",
+      fecha_cirugia_realizada: fechaSolo(r.fecha_cirugia_realizada),
       clinica: r.clinica_id ? mapaClinicas[r.clinica_id] || "Sin clínica" : "Sin clínica",
       estado: esRechazadoONoApto(r)
         ? "Rechazado / no apto"

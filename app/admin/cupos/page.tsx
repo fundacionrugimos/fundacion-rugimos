@@ -1,8 +1,68 @@
+
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { supabase } from "@/lib/supabase"
 import Link from "next/link"
+import { supabase } from "@/lib/supabase"
+
+type Clinica = {
+  id: string
+  nome?: string
+  nombre?: string
+  zona?: string
+  endereco?: string
+  ativa?: boolean
+  dias_funcionamento?: string[] | null
+}
+
+type Horario = {
+  id: string
+  clinica_id: string
+  hora?: string
+  horario?: string
+  horario_inicio?: string
+  cupos_maximos?: number
+  cupos?: number
+}
+
+type CupoDiario = {
+  id: string
+  clinica_id: string
+  horario_id: string
+  fecha: string
+  cupos: number
+  ocupados: number
+}
+
+type Registro = {
+  id: string
+  clinica_id?: string
+  horario_id?: string
+  fecha_programada?: string
+  hora?: string | null
+  estado_cita?: string | null
+  codigo?: string | null
+  nombre_animal?: string | null
+  especie?: string | null
+  sexo?: string | null
+  tipo_animal?: string | null
+  telefono?: string | null
+  celular?: string | null
+  nombre_responsable?: string | null
+  nombre_completo?: string | null
+  responsable?: string | null
+  tutor?: string | null
+  propietario?: string | null
+}
+
+type CupoEspecialFecha = {
+  id?: string
+  clinica_id: string
+  horario_id: string
+  fecha: string
+  cupos: number
+  activo?: boolean
+}
 
 function getLocalDateString() {
   const now = new Date()
@@ -11,22 +71,16 @@ function getLocalDateString() {
   return local.toISOString().split("T")[0]
 }
 
-function getClinicaNombre(clinica: any) {
-  return clinica?.nome || clinica?.nombre || clinica?.name || "Sin nombre"
+function getClinicaNombre(clinica: Clinica) {
+  return clinica?.nome || clinica?.nombre || "Sin nombre"
 }
 
-function getHorarioHora(horario: any) {
-  return horario?.hora || horario?.hour || ""
+function getHorarioHora(horario: Horario) {
+  return horario?.hora || horario?.horario || horario?.horario_inicio || ""
 }
 
-function getHorarioCupos(horario: any) {
-  return (
-    horario?.cupos ??
-    horario?.cupos_maximos ??
-    horario?.cupo_maximo ??
-    horario?.maximo ??
-    10
-  )
+function getHorarioCupos(horario: Horario) {
+  return Number(horario?.cupos_maximos ?? horario?.cupos ?? 0)
 }
 
 function normalizarEstado(estado?: string | null) {
@@ -34,13 +88,18 @@ function normalizarEstado(estado?: string | null) {
 
   if (valor === "programado") return "PROGRAMADO"
   if (valor === "reprogramado") return "REPROGRAMADO"
-  if (valor === "atendido" || valor === "realizado") return "REALIZADO"
+  if (valor === "realizado" || valor === "atendido") return "REALIZADO"
   if (valor === "cancelado") return "CANCELADO"
-  if (valor === "recusado" || valor === "rechazado") return "RECHAZADO"
-  if (valor === "falleció" || valor === "fallecio") return "FALLECIO"
+  if (valor === "rechazado" || valor === "rejeitado") return "RECHAZADO"
   if (valor === "no show" || valor === "noshow" || valor === "no_show") return "NO_SHOW"
+  if (valor === "fallecio" || valor === "falleció") return "FALLECIO"
 
   return "OTRO"
+}
+
+function ocupaCupo(estado?: string | null) {
+  const normalizado = normalizarEstado(estado)
+  return normalizado === "PROGRAMADO" || normalizado === "REPROGRAMADO"
 }
 
 function labelEstado(estado?: string | null) {
@@ -57,182 +116,517 @@ function labelEstado(estado?: string | null) {
       return "Cancelado"
     case "RECHAZADO":
       return "Rechazado"
+    case "NO_SHOW":
+      return "No show"
     case "FALLECIO":
       return "Falleció"
-    case "NO_SHOW":
-      return "No Show"
     default:
       return estado || "Sin estado"
   }
 }
 
-function clasesBadgeEstado(estado?: string | null) {
+function clasesEstado(estado?: string | null) {
   const normalizado = normalizarEstado(estado)
 
   switch (normalizado) {
     case "PROGRAMADO":
-      return "bg-yellow-500 text-white"
+      return "bg-amber-100 text-amber-800 border border-amber-200"
     case "REPROGRAMADO":
-      return "bg-blue-600 text-white"
+      return "bg-sky-100 text-sky-800 border border-sky-200"
     case "REALIZADO":
-      return "bg-green-600 text-white"
+      return "bg-emerald-100 text-emerald-800 border border-emerald-200"
     case "CANCELADO":
-      return "bg-red-600 text-white"
+      return "bg-rose-100 text-rose-800 border border-rose-200"
     case "RECHAZADO":
-      return "bg-gray-700 text-white"
-    case "FALLECIO":
-      return "bg-black text-white"
     case "NO_SHOW":
-      return "bg-gray-300 text-gray-800"
+      return "bg-zinc-100 text-zinc-700 border border-zinc-200"
+    case "FALLECIO":
+      return "bg-zinc-800 text-white border border-zinc-800"
     default:
-      return "bg-gray-300 text-gray-800"
+      return "bg-zinc-50 text-zinc-700 border border-zinc-200"
   }
 }
 
-function ocupaCupo(estado?: string | null) {
-  const normalizado = normalizarEstado(estado)
-  return normalizado === "PROGRAMADO" || normalizado === "REPROGRAMADO"
+function obtenerDiaSemana(fecha: string) {
+  const diasMap: Record<number, string> = {
+    0: "domingo",
+    1: "lunes",
+    2: "martes",
+    3: "miercoles",
+    4: "jueves",
+    5: "viernes",
+    6: "sabado",
+  }
+
+  const numero = new Date(`${fecha}T12:00:00`).getDay()
+  return diasMap[numero]
 }
 
-export default function Page() {
+function clinicaAbreEseDia(clinica: Clinica, fecha: string) {
+  if (!clinica?.dias_funcionamento || clinica.dias_funcionamento.length === 0) {
+    return true
+  }
+
+  const dia = obtenerDiaSemana(fecha)
+  return clinica.dias_funcionamento.includes(dia)
+}
+
+function formatFecha(fecha: string) {
+  const [y, m, d] = fecha.split("-")
+  return `${d}/${m}/${y}`
+}
+
+function getResponsable(registro: Registro) {
+  return (
+    registro?.nombre_responsable ||
+    registro?.nombre_completo ||
+    registro?.responsable ||
+    registro?.tutor ||
+    registro?.propietario ||
+    "Sin nombre"
+  )
+}
+
+function getTelefono(registro: Registro) {
+  return registro?.telefono || registro?.celular || "Sin teléfono"
+}
+
+function getSlotTone(cupos: number, ocupados: number) {
+  if (cupos <= 0) return "hidden"
+  const disponibles = Math.max(0, cupos - ocupados)
+  if (disponibles <= 0) return "full"
+  const ratio = ocupados / Math.max(1, cupos)
+  if (ratio >= 0.7) return "warning"
+  return "ok"
+}
+
+function slotClasses(tone: string) {
+  if (tone === "full") {
+    return "border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100"
+  }
+  if (tone === "warning") {
+    return "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100"
+  }
+  return "border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
+}
+
+function normalizarHoraParaGuardar(hora: string) {
+  if (!hora) return ""
+  return hora.length === 5 ? `${hora}:00` : hora
+}
+
+function normalizarHoraParaInput(hora: string) {
+  if (!hora) return ""
+  return hora.slice(0, 5)
+}
+
+export default function AdminCuposPage() {
   const [fecha, setFecha] = useState(getLocalDateString())
-  const [clinicas, setClinicas] = useState<any[]>([])
-  const [horarios, setHorarios] = useState<any[]>([])
-  const [cuposDiarios, setCuposDiarios] = useState<any[]>([])
-  const [registros, setRegistros] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [sincronizando, setSincronizando] = useState(false)
 
-  const [errorClinicas, setErrorClinicas] = useState("")
-  const [errorHorarios, setErrorHorarios] = useState("")
-  const [errorCupos, setErrorCupos] = useState("")
-  const [errorRegistros, setErrorRegistros] = useState("")
+  const [clinicas, setClinicas] = useState<Clinica[]>([])
+  const [horarios, setHorarios] = useState<Horario[]>([])
+  const [cuposDiarios, setCuposDiarios] = useState<CupoDiario[]>([])
+  const [registros, setRegistros] = useState<Registro[]>([])
+  const [cuposEspecialesFecha, setCuposEspecialesFecha] = useState<CupoEspecialFecha[]>([])
 
-  const [modalHorario, setModalHorario] = useState(false)
-  const [detalleHorario, setDetalleHorario] = useState<{
+  const [busqueda, setBusqueda] = useState("")
+  const [zonaFiltro, setZonaFiltro] = useState("Todas")
+  const [mostrarSoloConDisponibles, setMostrarSoloConDisponibles] = useState(false)
+
+  const [detalleAbierto, setDetalleAbierto] = useState(false)
+  const [detalleSeleccionado, setDetalleSeleccionado] = useState<{
     clinicaId: string
     clinicaNombre: string
     horarioId: string
     hora: string
   } | null>(null)
 
+  const [gestionAbierta, setGestionAbierta] = useState(false)
+  const [clinicaGestion, setClinicaGestion] = useState<Clinica | null>(null)
+
+  const [nuevoHorarioHora, setNuevoHorarioHora] = useState("")
+  const [nuevoHorarioCupo, setNuevoHorarioCupo] = useState("10")
+
+  const [editandoHorarioId, setEditandoHorarioId] = useState<string | null>(null)
+  const [guardandoHorario, setGuardandoHorario] = useState(false)
+
+  const clinicaIds = useMemo(() => clinicas.map((c) => c.id), [clinicas])
+
+  async function cargarBase() {
+    setLoading(true)
+
+    const { data: clinicasData, error: clinicasError } = await supabase
+      .from("clinicas")
+      .select("*")
+      .eq("ativa", true)
+      .order("nome", { ascending: true })
+
+    if (clinicasError) {
+      console.error("Error cargando clínicas:", clinicasError)
+      setClinicas([])
+      setHorarios([])
+      setLoading(false)
+      return
+    }
+
+    const clinicasActivas = (clinicasData || []) as Clinica[]
+    setClinicas(clinicasActivas)
+
+    const ids = clinicasActivas.map((c) => c.id)
+
+    if (ids.length === 0) {
+      setHorarios([])
+      setCuposDiarios([])
+      setRegistros([])
+      setCuposEspecialesFecha([])
+      setLoading(false)
+      return
+    }
+
+    const [horariosRes, cuposRes, registrosRes, especialesFechaRes] = await Promise.all([
+      supabase.from("horarios_clinica").select("*").in("clinica_id", ids),
+      supabase.from("cupos_diarios").select("*").eq("fecha", fecha).in("clinica_id", ids),
+      supabase.from("registros").select("*").eq("fecha_programada", fecha).in("clinica_id", ids),
+      supabase.from("cupos_horario_fecha_especifica").select("*").in("clinica_id", ids).eq("activo", true),
+    ])
+
+    if (horariosRes.error) {
+      console.error("Error cargando horarios:", horariosRes.error)
+      setHorarios([])
+    } else {
+      setHorarios(((horariosRes.data || []) as Horario[]).sort((a, b) => getHorarioHora(a).localeCompare(getHorarioHora(b))))
+    }
+
+    if (cuposRes.error) {
+      console.error("Error cargando cupos diarios:", cuposRes.error)
+      setCuposDiarios([])
+    } else {
+      setCuposDiarios((cuposRes.data || []) as CupoDiario[])
+    }
+
+    if (registrosRes.error) {
+      console.error("Error cargando registros:", registrosRes.error)
+      setRegistros([])
+    } else {
+      setRegistros((registrosRes.data || []) as Registro[])
+    }
+
+    if (especialesFechaRes.error) {
+      console.error("Error cargando cupos especiales por fecha:", especialesFechaRes.error)
+      setCuposEspecialesFecha([])
+    } else {
+      setCuposEspecialesFecha((especialesFechaRes.data || []) as CupoEspecialFecha[])
+    }
+
+    setLoading(false)
+  }
+
+  async function cargarDatosFecha(fechaActual: string, idsExternos?: string[]) {
+    const ids = idsExternos || clinicaIds
+    if (ids.length === 0) {
+      setCuposDiarios([])
+      setRegistros([])
+      return
+    }
+
+    const [cuposRes, registrosRes] = await Promise.all([
+      supabase.from("cupos_diarios").select("*").eq("fecha", fechaActual).in("clinica_id", ids),
+      supabase.from("registros").select("*").eq("fecha_programada", fechaActual).in("clinica_id", ids),
+    ])
+
+    if (cuposRes.error) {
+      console.error("Error cargando cupos diarios:", cuposRes.error)
+      setCuposDiarios([])
+    } else {
+      setCuposDiarios((cuposRes.data || []) as CupoDiario[])
+    }
+
+    if (registrosRes.error) {
+      console.error("Error cargando registros:", registrosRes.error)
+      setRegistros([])
+    } else {
+      setRegistros((registrosRes.data || []) as Registro[])
+    }
+  }
+
   useEffect(() => {
     cargarBase()
   }, [])
 
   useEffect(() => {
-    if (clinicas.length > 0 || horarios.length > 0) {
-      cargarCuposPorFecha()
+    if (clinicaIds.length > 0) {
+      cargarDatosFecha(fecha)
     }
-  }, [fecha, clinicas.length, horarios.length])
+  }, [fecha])
 
-  async function cargarBase() {
-    setLoading(true)
-    setErrorClinicas("")
-    setErrorHorarios("")
+  const zonas = useMemo(() => {
+    return ["Todas", ...Array.from(new Set(clinicas.map((c) => c.zona).filter(Boolean) as string[])).sort()]
+  }, [clinicas])
 
-    const { data: clinicasData, error: clinicasError } = await supabase
-      .from("clinicas")
-      .select("*")
+  const clinicasVisibles = useMemo(() => {
+    let base = clinicas.filter((clinica) => clinicaAbreEseDia(clinica, fecha))
 
-    if (clinicasError) {
-      console.log("Error cargando clínicas:", clinicasError)
-      setErrorClinicas(clinicasError.message || "Error cargando clínicas")
+    if (zonaFiltro !== "Todas") {
+      base = base.filter((c) => c.zona === zonaFiltro)
     }
 
-    const { data: horariosData, error: horariosError } = await supabase
-      .from("horarios_clinica")
-      .select("*")
-
-    if (horariosError) {
-      console.log("Error cargando horarios:", horariosError)
-      setErrorHorarios(horariosError.message || "Error cargando horarios")
+    const texto = busqueda.trim().toLowerCase()
+    if (texto) {
+      base = base.filter((c) => {
+        return (
+          getClinicaNombre(c).toLowerCase().includes(texto) ||
+          String(c.zona || "").toLowerCase().includes(texto) ||
+          String(c.endereco || "").toLowerCase().includes(texto)
+        )
+      })
     }
 
-    const clinicasOrdenadas = [...(clinicasData || [])].sort((a, b) =>
-      getClinicaNombre(a).localeCompare(getClinicaNombre(b))
-    )
+    return base
+  }, [clinicas, fecha, zonaFiltro, busqueda])
 
-    const horariosOrdenados = [...(horariosData || [])].sort((a, b) =>
-      getHorarioHora(a).localeCompare(getHorarioHora(b))
-    )
+  const clinicaIdsVisibles = useMemo(() => clinicasVisibles.map((c) => c.id), [clinicasVisibles])
 
-    setClinicas(clinicasOrdenadas)
-    setHorarios(horariosOrdenados)
-    setLoading(false)
+  const horariosFiltrados = useMemo(() => {
+    return horarios.filter((h) => clinicaIdsVisibles.includes(h.clinica_id))
+  }, [horarios, clinicaIdsVisibles])
+
+  const horariosUnicos = useMemo(() => {
+    const horas = Array.from(new Set(horariosFiltrados.map((h) => getHorarioHora(h)).filter(Boolean)))
+    return horas.sort((a, b) => a.localeCompare(b))
+  }, [horariosFiltrados])
+
+  const horarioPorClinicaHora = useMemo(() => {
+    const mapa = new Map<string, Horario>()
+    for (const horario of horariosFiltrados) {
+      const hora = getHorarioHora(horario)
+      if (!hora) continue
+      mapa.set(`${horario.clinica_id}__${hora}`, horario)
+    }
+    return mapa
+  }, [horariosFiltrados])
+
+  const cupoPorClinicaHorario = useMemo(() => {
+    const mapa = new Map<string, CupoDiario>()
+    for (const cupo of cuposDiarios) {
+      mapa.set(`${cupo.clinica_id}__${cupo.horario_id}`, cupo)
+    }
+    return mapa
+  }, [cuposDiarios])
+
+  const registrosPorClinicaHorario = useMemo(() => {
+    const mapa = new Map<string, Registro[]>()
+    for (const registro of registros) {
+      if (!registro.clinica_id || !registro.horario_id) continue
+      const clave = `${registro.clinica_id}__${registro.horario_id}`
+      if (!mapa.has(clave)) mapa.set(clave, [])
+      mapa.get(clave)!.push(registro)
+    }
+    return mapa
+  }, [registros])
+
+  const ocupadosPorClinicaHorario = useMemo(() => {
+    const mapa = new Map<string, number>()
+    for (const registro of registros) {
+      if (!registro.clinica_id || !registro.horario_id) continue
+      if (!ocupaCupo(registro.estado_cita)) continue
+      const clave = `${registro.clinica_id}__${registro.horario_id}`
+      mapa.set(clave, (mapa.get(clave) || 0) + 1)
+    }
+    return mapa
+  }, [registros])
+
+  const especialesFechaMap = useMemo(() => {
+    const mapa = new Map<string, CupoEspecialFecha>()
+    for (const item of cuposEspecialesFecha) {
+      mapa.set(`${item.clinica_id}__${item.horario_id}__${item.fecha}`, item)
+    }
+    return mapa
+  }, [cuposEspecialesFecha])
+
+  function obtenerHorario(clinicaId: string, hora: string) {
+    return horarioPorClinicaHora.get(`${clinicaId}__${hora}`) || null
   }
 
-  async function cargarCuposPorFecha() {
-    setLoading(true)
-    setErrorCupos("")
-    setErrorRegistros("")
-
-    const { data: cuposData, error: cuposError } = await supabase
-      .from("cupos_diarios")
-      .select("*")
-      .eq("fecha", fecha)
-
-    if (cuposError) {
-      console.log("Error cargando cupos diarios:", cuposError)
-      setErrorCupos(cuposError.message || "Error cargando cupos diarios")
-      setCuposDiarios([])
-    } else {
-      setCuposDiarios(cuposData || [])
-    }
-
-    const { data: registrosData, error: registrosError } = await supabase
-      .from("registros")
-      .select("*")
-      .eq("fecha_programada", fecha)
-
-    if (registrosError) {
-      console.log("Error cargando registros:", registrosError)
-      setErrorRegistros(registrosError.message || "Error cargando registros")
-      setRegistros([])
-    } else {
-      setRegistros(registrosData || [])
-    }
-
-    setLoading(false)
+  function obtenerCupoDiario(clinicaId: string, horarioId: string) {
+    return cupoPorClinicaHorario.get(`${clinicaId}__${horarioId}`) || null
   }
 
-  async function obtenerOCrearCupoDiario(
+  function obtenerOcupadosReales(clinicaId: string, horarioId: string) {
+    return ocupadosPorClinicaHorario.get(`${clinicaId}__${horarioId}`) || 0
+  }
+
+  function obtenerRegistrosHorario(clinicaId: string, horarioId: string) {
+    return registrosPorClinicaHorario.get(`${clinicaId}__${horarioId}`) || []
+  }
+
+  function obtenerCupoFechaEspecifica(clinicaId: string, horarioId: string, fechaTarget: string) {
+    return especialesFechaMap.get(`${clinicaId}__${horarioId}__${fechaTarget}`) || null
+  }
+
+  const resumen = useMemo(() => {
+    let cuposTotales = 0
+    let ocupadosTotales = 0
+    let registrosDia = 0
+
+    for (const horario of horariosFiltrados) {
+      const clinicaId = horario.clinica_id
+      const horarioId = horario.id
+      const cupoDiario = obtenerCupoDiario(clinicaId, horarioId)
+      const cupos = Number(cupoDiario?.cupos ?? getHorarioCupos(horario))
+      const ocupados = obtenerOcupadosReales(clinicaId, horarioId)
+      if (cupos === 0 && ocupados === 0) continue
+      cuposTotales += cupos
+      ocupadosTotales += ocupados
+    }
+
+    registrosDia = registros.filter((r) => clinicaIdsVisibles.includes(r.clinica_id || "")).length
+
+    return {
+      cuposTotales,
+      ocupadosTotales,
+      disponiblesTotales: Math.max(0, cuposTotales - ocupadosTotales),
+      registrosDia,
+    }
+  }, [horariosFiltrados, cuposDiarios, registros, clinicaIdsVisibles])
+
+  const clinicasTarjetas = useMemo(() => {
+    return clinicasVisibles
+      .map((clinica) => {
+        const slots = horariosUnicos
+          .map((hora) => {
+            const horario = obtenerHorario(clinica.id, hora)
+            if (!horario) return null
+            const cupoDiario = obtenerCupoDiario(clinica.id, horario.id)
+            const cupos = Number(cupoDiario?.cupos ?? getHorarioCupos(horario))
+            const ocupados = obtenerOcupadosReales(clinica.id, horario.id)
+
+            if (cupos === 0 && ocupados === 0) return null
+
+            return {
+              horario,
+              hora,
+              cupos,
+              ocupados,
+              disponibles: Math.max(0, cupos - ocupados),
+              tone: getSlotTone(cupos, ocupados),
+            }
+          })
+          .filter(Boolean) as {
+            horario: Horario
+            hora: string
+            cupos: number
+            ocupados: number
+            disponibles: number
+            tone: string
+          }[]
+
+        const totales = slots.reduce(
+          (acc, slot) => {
+            acc.cupos += slot.cupos
+            acc.ocupados += slot.ocupados
+            return acc
+          },
+          { cupos: 0, ocupados: 0 }
+        )
+
+        return {
+          clinica,
+          slots,
+          cupos: totales.cupos,
+          ocupados: totales.ocupados,
+          disponibles: Math.max(0, totales.cupos - totales.ocupados),
+        }
+      })
+      .filter((item) => !mostrarSoloConDisponibles || item.disponibles > 0)
+  }, [clinicasVisibles, horariosUnicos, cuposDiarios, registros, mostrarSoloConDisponibles])
+
+  function cambiarFecha(dias: number) {
+    const base = new Date(`${fecha}T00:00:00`)
+    base.setDate(base.getDate() + dias)
+    const yyyy = base.getFullYear()
+    const mm = String(base.getMonth() + 1).padStart(2, "0")
+    const dd = String(base.getDate()).padStart(2, "0")
+    setFecha(`${yyyy}-${mm}-${dd}`)
+  }
+
+  async function obtenerCupoProgramadoDesdeBD(
     clinicaId: string,
     horarioId: string,
-    fechaSeleccionada: string
+    fechaTarget: string,
+    cupoBase: number
   ) {
+    const especialFecha = obtenerCupoFechaEspecifica(clinicaId, horarioId, fechaTarget)
+    if (especialFecha && Number.isFinite(Number(especialFecha.cupos))) {
+      return Number(especialFecha.cupos)
+    }
+
+    const diaSemana = new Date(`${fechaTarget}T12:00:00`).getDay()
+    const { data: especialDia, error: errorDia } = await supabase
+      .from("cupos_horario_dia_semana")
+      .select("cupos")
+      .eq("clinica_id", clinicaId)
+      .eq("horario_id", horarioId)
+      .eq("dia_semana", diaSemana)
+      .eq("activo", true)
+      .maybeSingle()
+
+    if (errorDia) {
+      console.error("Error buscando cupo especial por día:", errorDia)
+    }
+
+    if (especialDia && Number.isFinite(Number(especialDia.cupos))) {
+      return Number(especialDia.cupos)
+    }
+
+    return cupoBase
+  }
+
+  async function obtenerOCrearCupoDiario(clinicaId: string, horarioId: string, fechaTarget: string) {
     const { data: existente, error: errorBuscar } = await supabase
       .from("cupos_diarios")
       .select("*")
       .eq("clinica_id", clinicaId)
       .eq("horario_id", horarioId)
-      .eq("fecha", fechaSeleccionada)
+      .eq("fecha", fechaTarget)
       .maybeSingle()
 
     if (errorBuscar) throw errorBuscar
 
+    const horarioBase = horarios.find((h) => h.id === horarioId && h.clinica_id === clinicaId)
+    if (!horarioBase) throw new Error("No se encontró el horario base.")
+
+    const cupoBase = Number(getHorarioCupos(horarioBase))
+    const cupoProgramado = await obtenerCupoProgramadoDesdeBD(clinicaId, horarioId, fechaTarget, cupoBase)
+
     if (existente) {
-      return existente
+      const ocupadosActuales = Number(existente.ocupados || 0)
+      const cupoFinal = Math.max(cupoProgramado, ocupadosActuales)
+
+      if (Number(existente.cupos) !== cupoFinal) {
+        const { data: actualizado, error: errorUpdate } = await supabase
+          .from("cupos_diarios")
+          .update({ cupos: cupoFinal })
+          .eq("id", existente.id)
+          .select("*")
+          .single()
+
+        if (errorUpdate) throw errorUpdate
+        return actualizado as CupoDiario
+      }
+
+      return existente as CupoDiario
     }
 
-    const horarioBase = horarios.find(
-      (h) => h.id === horarioId && h.clinica_id === clinicaId
-    )
-
-    if (!horarioBase) {
-      throw new Error("No se encontró el horario base para crear el cupo diario.")
-    }
-
-    const cuposIniciales = Number(getHorarioCupos(horarioBase))
-
-    const { data: nuevoCupo, error: errorInsert } = await supabase
+    const { data: nuevo, error: errorInsert } = await supabase
       .from("cupos_diarios")
       .insert([
         {
           clinica_id: clinicaId,
           horario_id: horarioId,
-          fecha: fechaSeleccionada,
-          cupos: cuposIniciales,
+          fecha: fechaTarget,
+          cupos: cupoProgramado,
           ocupados: 0,
         },
       ])
@@ -240,470 +634,1049 @@ export default function Page() {
       .single()
 
     if (errorInsert) throw errorInsert
-
-    return nuevoCupo
+    return nuevo as CupoDiario
   }
 
-  async function sincronizarCuposReales() {
-    setSincronizando(true)
-    setErrorCupos("")
-    setErrorRegistros("")
-
+  async function sincronizarCupos() {
     try {
+      setSincronizando(true)
+
+      if (clinicaIdsVisibles.length === 0) {
+        alert("No hay clínicas activas para ese día.")
+        return
+      }
+
       const { data: registrosData, error: registrosError } = await supabase
         .from("registros")
         .select("id, clinica_id, horario_id, fecha_programada, estado_cita")
         .eq("fecha_programada", fecha)
+        .in("clinica_id", clinicaIdsVisibles)
 
       if (registrosError) throw registrosError
 
-      const registrosValidos = (registrosData || []).filter(
-        (registro) =>
-          registro.clinica_id &&
-          registro.horario_id &&
-          ocupaCupo(registro.estado_cita)
+      const registrosValidos = ((registrosData || []) as Registro[]).filter(
+        (r) => r.clinica_id && r.horario_id && ocupaCupo(r.estado_cita)
       )
 
-      const clavesNecesarias = new Set<string>()
-
-      registrosValidos.forEach((registro) => {
-        const clave = `${registro.clinica_id}__${registro.horario_id}`
-        clavesNecesarias.add(clave)
-      })
-
-      horarios.forEach((horario) => {
-        if (!horario?.clinica_id || !horario?.id) return
-        const clave = `${horario.clinica_id}__${horario.id}`
-        clavesNecesarias.add(clave)
-      })
-
-      const mapaCupos: Record<string, any> = {}
+      const claves = new Set<string>()
+      for (const horario of horariosFiltrados) {
+        if (horario.clinica_id && horario.id) {
+          claves.add(`${horario.clinica_id}__${horario.id}`)
+        }
+      }
 
       const { data: cuposActuales, error: cuposError } = await supabase
         .from("cupos_diarios")
         .select("*")
         .eq("fecha", fecha)
+        .in("clinica_id", clinicaIdsVisibles)
 
       if (cuposError) throw cuposError
 
-      ;(cuposActuales || []).forEach((cupo) => {
-        const clave = `${cupo.clinica_id}__${cupo.horario_id}`
-        mapaCupos[clave] = cupo
-      })
+      const mapaCupos: Record<string, CupoDiario> = {}
+      for (const cupo of ((cuposActuales || []) as CupoDiario[])) {
+        mapaCupos[`${cupo.clinica_id}__${cupo.horario_id}`] = cupo
+      }
 
-      for (const clave of Array.from(clavesNecesarias)) {
+      for (const clave of Array.from(claves)) {
         const [clinicaId, horarioId] = clave.split("__")
-
         if (!mapaCupos[clave]) {
-          const nuevoCupo = await obtenerOCrearCupoDiario(clinicaId, horarioId, fecha)
-          mapaCupos[clave] = nuevoCupo
+          const creado = await obtenerOCrearCupoDiario(clinicaId, horarioId, fecha)
+          mapaCupos[clave] = creado
         }
       }
 
       const conteoPorClave: Record<string, number> = {}
-
-      registrosValidos.forEach((registro) => {
+      for (const registro of registrosValidos) {
         const clave = `${registro.clinica_id}__${registro.horario_id}`
         conteoPorClave[clave] = (conteoPorClave[clave] || 0) + 1
-      })
+      }
 
-      for (const clave of Object.keys(mapaCupos)) {
+      const updates = Object.keys(mapaCupos).map(async (clave) => {
         const cupo = mapaCupos[clave]
         const ocupadosReales = conteoPorClave[clave] || 0
-        const ocupadosActuales = Number(cupo?.ocupados ?? cupo?.cupos_ocupados ?? 0)
+        const [clinicaId, horarioId] = clave.split("__")
 
-        if (ocupadosActuales !== ocupadosReales) {
+        const horarioBase = horarios.find((h) => h.clinica_id === clinicaId && h.id === horarioId)
+        const cuposBase = Number(horarioBase?.cupos_maximos ?? horarioBase?.cupos ?? cupo?.cupos ?? 0)
+        const cupoProgramado = await obtenerCupoProgramadoDesdeBD(clinicaId, horarioId, fecha, cuposBase)
+        const cupoFinal = Math.max(cupoProgramado, ocupadosReales)
+
+        if (Number(cupo.ocupados || 0) !== ocupadosReales || Number(cupo.cupos || 0) !== cupoFinal) {
           const { error: updateError } = await supabase
             .from("cupos_diarios")
-            .update({ ocupados: ocupadosReales })
+            .update({ ocupados: ocupadosReales, cupos: cupoFinal })
             .eq("id", cupo.id)
 
           if (updateError) throw updateError
         }
-      }
+      })
 
-      await cargarCuposPorFecha()
-      alert("Cupos sincronizados correctamente con los registros reales.")
+      await Promise.all(updates)
+      await cargarDatosFecha(fecha, clinicaIdsVisibles)
+      alert("Cupos sincronizados correctamente.")
     } catch (error: any) {
       console.error("Error sincronizando cupos:", error)
-      alert(error.message || "Ocurrió un error al sincronizar los cupos.")
+      alert(error.message || "Error al sincronizar cupos.")
     } finally {
       setSincronizando(false)
     }
   }
 
-  const horariosUnicos = useMemo(() => {
-    const horas = Array.from(
-      new Set(horarios.map((h) => getHorarioHora(h)).filter(Boolean))
-    )
-
-    return horas.sort((a, b) => a.localeCompare(b))
-  }, [horarios])
-
-  function obtenerHorario(clinicaId: string, hora: string) {
-    return horarios.find((h) => {
-      const horaHorario = getHorarioHora(h)
-      return h.clinica_id === clinicaId && horaHorario === hora
-    })
-  }
-
-  function obtenerCupoDiario(clinicaId: string, horarioId: string) {
-    return cuposDiarios.find(
-      (c) => c.clinica_id === clinicaId && c.horario_id === horarioId
-    )
-  }
-
-  function obtenerRegistrosHorario(clinicaId: string, horarioId: string) {
-    return registros
-      .filter(
-        (r) =>
-          r.clinica_id === clinicaId &&
-          r.horario_id === horarioId &&
-          r.fecha_programada === fecha
-      )
-      .sort((a, b) => {
-        const nombreA = (a?.nombre_animal || "").toLowerCase()
-        const nombreB = (b?.nombre_animal || "").toLowerCase()
-        return nombreA.localeCompare(nombreB)
-      })
-  }
-
-  function obtenerOcupadosReales(clinicaId: string, horarioId: string) {
-    return obtenerRegistrosHorario(clinicaId, horarioId).filter((r) =>
-      ocupaCupo(r.estado_cita)
-    ).length
-  }
-
-  function abrirDetalleHorario(clinicaId: string, hora: string) {
+  function abrirDetalle(clinicaId: string, hora: string) {
     const horario = obtenerHorario(clinicaId, hora)
     const clinica = clinicas.find((c) => c.id === clinicaId)
-
     if (!horario || !clinica) return
 
-    setDetalleHorario({
+    setDetalleSeleccionado({
       clinicaId,
       clinicaNombre: getClinicaNombre(clinica),
       horarioId: horario.id,
       hora,
     })
-    setModalHorario(true)
+    setDetalleAbierto(true)
   }
 
-  function cerrarDetalleHorario() {
-    setModalHorario(false)
-    setDetalleHorario(null)
+  function cerrarDetalle() {
+    setDetalleAbierto(false)
+    setDetalleSeleccionado(null)
   }
 
-  function renderCupo(clinicaId: string, hora: string) {
-    const horario = obtenerHorario(clinicaId, hora)
+  function abrirGestion(clinica: Clinica) {
+    setClinicaGestion(clinica)
+    setGestionAbierta(true)
+    setEditandoHorarioId(null)
+  }
 
-    if (!horario) {
-      return <span className="text-gray-400">-</span>
+  function cerrarGestion() {
+    setGestionAbierta(false)
+    setClinicaGestion(null)
+    setEditandoHorarioId(null)
+    setNuevoHorarioHora("")
+    setNuevoHorarioCupo("10")
+  }
+
+  async function actualizarCupoDelDia(clinicaId: string, horarioId: string, nuevoCupo: number) {
+    if (Number.isNaN(nuevoCupo) || nuevoCupo < 0) {
+      alert("Ingresa un cupo válido.")
+      return
     }
 
-    const cupoDiario = obtenerCupoDiario(clinicaId, horario.id)
-    const cupos = Number(cupoDiario?.cupos ?? getHorarioCupos(horario))
-    const ocupados = obtenerOcupadosReales(clinicaId, horario.id)
-    const disponibles = Math.max(0, cupos - ocupados)
+    try {
+      const existente = await obtenerOCrearCupoDiario(clinicaId, horarioId, fecha)
+      const ocupados = obtenerOcupadosReales(clinicaId, horarioId)
+      const cupoFinal = Math.max(nuevoCupo, ocupados)
 
-    let color = "text-green-700 bg-green-50 border-green-200"
-    if (disponibles === 0) color = "text-red-700 bg-red-50 border-red-200"
-    else if (disponibles <= 2) color = "text-yellow-700 bg-yellow-50 border-yellow-200"
+      const { error } = await supabase
+        .from("cupos_diarios")
+        .update({ cupos: cupoFinal })
+        .eq("id", existente.id)
 
-    return (
-      <button
-        onClick={() => abrirDetalleHorario(clinicaId, hora)}
-        className={`inline-flex flex-col rounded-xl px-3 py-2 border transition hover:scale-[1.02] hover:shadow ${color}`}
-      >
-        <span className="font-bold text-sm">
-          {ocupados} / {cupos}
-        </span>
-        <span className="text-xs">
-          Disponibles: {disponibles}
-        </span>
-      </button>
-    )
+      if (error) throw error
+
+      await cargarDatosFecha(fecha)
+      alert("Cupo del día actualizado.")
+    } catch (error: any) {
+      console.error(error)
+      alert(error.message || "No se pudo actualizar el cupo del día.")
+    }
   }
 
-  const resumenGeneral = useMemo(() => {
-    let cuposTotales = 0
-    let ocupadosTotales = 0
+  async function restaurarBaseDelDia(clinicaId: string, horarioId: string) {
+    try {
+      const horarioBase = horarios.find((h) => h.id === horarioId && h.clinica_id === clinicaId)
+      if (!horarioBase) {
+        alert("No se encontró el horario base.")
+        return
+      }
 
-    clinicas.forEach((clinica) => {
-      horarios
-        .filter((h) => h.clinica_id === clinica.id)
-        .forEach((horario) => {
-          const cupoDiario = obtenerCupoDiario(clinica.id, horario.id)
-          const cupos = Number(cupoDiario?.cupos ?? getHorarioCupos(horario))
-          const ocupados = obtenerOcupadosReales(clinica.id, horario.id)
+      const existente = await obtenerOCrearCupoDiario(clinicaId, horarioId, fecha)
+      const ocupados = obtenerOcupadosReales(clinicaId, horarioId)
+      const baseProgramada = await obtenerCupoProgramadoDesdeBD(clinicaId, horarioId, fecha, getHorarioCupos(horarioBase))
+      const cupoFinal = Math.max(baseProgramada, ocupados)
 
-          cuposTotales += cupos
-          ocupadosTotales += ocupados
+      const { error } = await supabase
+        .from("cupos_diarios")
+        .update({ cupos: cupoFinal })
+        .eq("id", existente.id)
+
+      if (error) throw error
+
+      await cargarDatosFecha(fecha)
+      alert("Cupo restaurado según la configuración base.")
+    } catch (error: any) {
+      console.error(error)
+      alert(error.message || "No se pudo restaurar el cupo.")
+    }
+  }
+
+  async function ocultarHoy(clinicaId: string, horarioId: string) {
+    const ocupados = obtenerOcupadosReales(clinicaId, horarioId)
+    if (ocupados > 0) {
+      alert("Este horario ya tiene ocupados. No se puede ocultar totalmente hoy.")
+      return
+    }
+
+    await actualizarCupoDelDia(clinicaId, horarioId, 0)
+  }
+
+  async function guardarFechaEspecifica(clinicaId: string, horarioId: string, fechaTarget: string, cupos: number) {
+    if (!fechaTarget) {
+      alert("Selecciona una fecha.")
+      return
+    }
+
+    if (Number.isNaN(cupos) || cupos < 0) {
+      alert("Ingresa un cupo válido.")
+      return
+    }
+
+    try {
+      const existente = obtenerCupoFechaEspecifica(clinicaId, horarioId, fechaTarget)
+
+      if (existente) {
+        const { error } = await supabase
+          .from("cupos_horario_fecha_especifica")
+          .update({ cupos, activo: true })
+          .eq("clinica_id", clinicaId)
+          .eq("horario_id", horarioId)
+          .eq("fecha", fechaTarget)
+
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from("cupos_horario_fecha_especifica")
+          .insert([
+            {
+              clinica_id: clinicaId,
+              horario_id: horarioId,
+              fecha: fechaTarget,
+              cupos,
+              activo: true,
+            },
+          ])
+
+        if (error) throw error
+      }
+
+      const yaEsFechaVista = fechaTarget === fecha
+      if (yaEsFechaVista) {
+        await obtenerOCrearCupoDiario(clinicaId, horarioId, fechaTarget)
+        await restaurarBaseDelDia(clinicaId, horarioId)
+      }
+
+      const ids = clinicaGestion ? [clinicaGestion.id] : clinicaIds
+      const { data, error } = await supabase
+        .from("cupos_horario_fecha_especifica")
+        .select("*")
+        .in("clinica_id", ids)
+        .eq("activo", true)
+
+      if (!error) {
+        setCuposEspecialesFecha((data || []) as CupoEspecialFecha[])
+      }
+
+      alert("Fecha específica guardada correctamente.")
+    } catch (error: any) {
+      console.error(error)
+      alert(error.message || "No se pudo guardar la fecha específica.")
+    }
+  }
+
+  async function eliminarFechaEspecifica(clinicaId: string, horarioId: string, fechaTarget: string) {
+    try {
+      const { error } = await supabase
+        .from("cupos_horario_fecha_especifica")
+        .delete()
+        .eq("clinica_id", clinicaId)
+        .eq("horario_id", horarioId)
+        .eq("fecha", fechaTarget)
+
+      if (error) throw error
+
+      setCuposEspecialesFecha((prev) =>
+        prev.filter((i) => !(i.clinica_id === clinicaId && i.horario_id === horarioId && i.fecha === fechaTarget))
+      )
+
+      if (fechaTarget === fecha) {
+        await restaurarBaseDelDia(clinicaId, horarioId)
+      }
+
+      alert("Fecha específica eliminada.")
+    } catch (error: any) {
+      console.error(error)
+      alert(error.message || "No se pudo eliminar la fecha específica.")
+    }
+  }
+
+  async function agregarHorarioEnPanel() {
+    if (!clinicaGestion) return
+
+    const hora = normalizarHoraParaGuardar(nuevoHorarioHora)
+    const cupos = Number(nuevoHorarioCupo)
+
+    if (!hora) {
+      alert("Selecciona una hora.")
+      return
+    }
+
+    if (Number.isNaN(cupos) || cupos < 0) {
+      alert("Ingresa una cantidad válida de cupos.")
+      return
+    }
+
+    const existe = horarios.some((h) => h.clinica_id === clinicaGestion.id && getHorarioHora(h) === hora)
+    if (existe) {
+      alert("Ese horario ya existe para esta clínica.")
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from("horarios_clinica")
+        .insert([
+          {
+            clinica_id: clinicaGestion.id,
+            hora,
+            cupos_maximos: cupos,
+            cupos_ocupados: 0,
+          },
+        ])
+
+      if (error) throw error
+
+      setNuevoHorarioHora("")
+      setNuevoHorarioCupo("10")
+      await cargarBase()
+      await cargarDatosFecha(fecha)
+      alert("Horario añadido correctamente.")
+    } catch (error: any) {
+      console.error(error)
+      alert(error.message || "No se pudo añadir el horario.")
+    }
+  }
+
+  async function guardarHorarioBase(horarioId: string, nuevaHora: string, nuevoCupo: number) {
+    if (!clinicaGestion) return
+
+    if (!nuevaHora) {
+      alert("La hora es obligatoria.")
+      return
+    }
+
+    if (Number.isNaN(nuevoCupo) || nuevoCupo < 0) {
+      alert("El cupo debe ser válido.")
+      return
+    }
+
+    const horaNormalizada = normalizarHoraParaGuardar(nuevaHora)
+    const duplicado = horarios.some(
+      (h) => h.clinica_id === clinicaGestion.id && h.id !== horarioId && getHorarioHora(h) === horaNormalizada
+    )
+    if (duplicado) {
+      alert("Ya existe otro horario con esa hora.")
+      return
+    }
+
+    try {
+      setGuardandoHorario(true)
+
+      const { error } = await supabase
+        .from("horarios_clinica")
+        .update({
+          hora: horaNormalizada,
+          cupos_maximos: nuevoCupo,
         })
-    })
+        .eq("id", horarioId)
+
+      if (error) throw error
+
+      const cuposFuturosRes = await supabase
+        .from("cupos_diarios")
+        .select("id, fecha, ocupados")
+        .eq("clinica_id", clinicaGestion.id)
+        .eq("horario_id", horarioId)
+        .gte("fecha", getLocalDateString())
+
+      if (!cuposFuturosRes.error) {
+        const especialesClinicaHorario = cuposEspecialesFecha.filter(
+          (i) => i.clinica_id === clinicaGestion.id && i.horario_id === horarioId
+        )
+
+        for (const item of (cuposFuturosRes.data || []) as { id: string; fecha: string; ocupados: number }[]) {
+          const especial = especialesClinicaHorario.find((e) => e.fecha === item.fecha)
+          const cupoDeseado = especial ? Number(especial.cupos) : nuevoCupo
+          const cupoFinal = Math.max(Number(item.ocupados || 0), cupoDeseado)
+
+          await supabase.from("cupos_diarios").update({ cupos: cupoFinal }).eq("id", item.id)
+        }
+      }
+
+      await cargarBase()
+      await cargarDatosFecha(fecha)
+      alert("Horario base actualizado.")
+    } catch (error: any) {
+      console.error(error)
+      alert(error.message || "No se pudo actualizar el horario.")
+    } finally {
+      setGuardandoHorario(false)
+      setEditandoHorarioId(null)
+    }
+  }
+
+  async function ocultarBase(horarioId: string) {
+    if (!clinicaGestion) return
+    const confirmar = confirm("¿Ocultar este horario base? Se dejará en cupo 0 sin borrar historial.")
+    if (!confirmar) return
+    await guardarHorarioBase(horarioId, normalizarHoraParaInput(getHorarioHora(horarios.find((h) => h.id === horarioId)!)), 0)
+  }
+
+  const detalleInfo = useMemo(() => {
+    if (!detalleSeleccionado) return null
+    const { clinicaId, horarioId } = detalleSeleccionado
+    const horario = horarios.find((h) => h.id === horarioId)
+    if (!horario) return null
+
+    const cupoDiario = obtenerCupoDiario(clinicaId, horarioId)
+    const cupos = Number(cupoDiario?.cupos ?? getHorarioCupos(horario))
+    const ocupados = obtenerOcupadosReales(clinicaId, horarioId)
+    const registrosHorario = obtenerRegistrosHorario(clinicaId, horarioId).sort((a, b) =>
+      String(a.nombre_animal || "").localeCompare(String(b.nombre_animal || ""))
+    )
+    const especialFecha = obtenerCupoFechaEspecifica(clinicaId, horarioId, fecha)
 
     return {
-      cuposTotales,
-      ocupadosTotales,
-      disponiblesTotales: Math.max(0, cuposTotales - ocupadosTotales),
+      horario,
+      cupos,
+      ocupados,
+      disponibles: Math.max(0, cupos - ocupados),
+      registros: registrosHorario,
+      especialFecha,
     }
-  }, [clinicas, horarios, cuposDiarios, registros])
+  }, [detalleSeleccionado, horarios, cuposDiarios, registros, cuposEspecialesFecha, fecha])
 
-  const registrosDetalle = useMemo(() => {
-    if (!detalleHorario) return []
-    return obtenerRegistrosHorario(detalleHorario.clinicaId, detalleHorario.horarioId)
-  }, [detalleHorario, registros, fecha])
+  const horariosClinicaGestion = useMemo(() => {
+    if (!clinicaGestion) return []
+    return horarios
+      .filter((h) => h.clinica_id === clinicaGestion.id)
+      .sort((a, b) => getHorarioHora(a).localeCompare(getHorarioHora(b)))
+  }, [clinicaGestion, horarios])
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div className="bg-[#0f6b6b] p-6 text-white">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <main className="min-h-screen bg-[#026A6A] p-4 md:p-8">
+      <div className="mx-auto max-w-7xl">
+        <section className="rounded-[30px] bg-gradient-to-r from-[#055f5d] to-[#0a7471] px-6 py-7 text-white shadow-2xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="text-3xl font-bold">🐾 Panel de Cupos — Fundación Rugimos</h1>
-              <p className="text-white/80 mt-2">
-                Control diario de cupos por clínica y horario
+              <p className="text-xs font-bold uppercase tracking-[0.35em] text-white/70">Fundación Rugimos</p>
+              <h1 className="mt-2 text-3xl font-black md:text-5xl">Panel de Cupos V4 Ejecutiva</h1>
+              <p className="mt-3 max-w-3xl text-sm text-white/85 md:text-base">
+                Vista ejecutiva y operativa para mover cupos con libertad, incluyendo ajustes por fecha específica
+                para un horario puntual sin cambiar toda la semana.
               </p>
             </div>
 
-            <Link
-              href="/admin"
-              className="bg-white text-[#0f6b6b] px-4 py-2 rounded-xl font-semibold w-fit"
-            >
-              ← Volver al dashboard
-            </Link>
-          </div>
-        </div>
-
-        <div className="p-6 border-b bg-gray-50">
-          <div className="flex flex-col md:flex-row md:items-end gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Fecha
-              </label>
-              <input
-                type="date"
-                value={fecha}
-                onChange={(e) => setFecha(e.target.value)}
-                className="border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0f6b6b]"
-              />
-            </div>
-
-            <button
-              onClick={cargarCuposPorFecha}
-              className="bg-[#f47c2a] text-white px-5 py-3 rounded-xl font-semibold"
-            >
-              Actualizar
-            </button>
-
-            <button
-              onClick={sincronizarCuposReales}
-              disabled={sincronizando}
-              className="bg-[#0f6b6b] text-white px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
-            >
-              {sincronizando ? "Sincronizando..." : "Sincronizar cupos"}
-            </button>
-          </div>
-        </div>
-
-        {(errorClinicas || errorHorarios || errorCupos || errorRegistros) && (
-          <div className="p-6 border-b bg-red-50">
-            <h2 className="font-bold text-red-700 mb-3">Errores detectados</h2>
-
-            {errorClinicas && (
-              <p className="text-sm text-red-700 mb-1">
-                <strong>Clínicas:</strong> {errorClinicas}
-              </p>
-            )}
-
-            {errorHorarios && (
-              <p className="text-sm text-red-700 mb-1">
-                <strong>Horarios:</strong> {errorHorarios}
-              </p>
-            )}
-
-            {errorCupos && (
-              <p className="text-sm text-red-700 mb-1">
-                <strong>Cupos diarios:</strong> {errorCupos}
-              </p>
-            )}
-
-            {errorRegistros && (
-              <p className="text-sm text-red-700">
-                <strong>Registros:</strong> {errorRegistros}
-              </p>
-            )}
-          </div>
-        )}
-
-        <div className="grid md:grid-cols-3 gap-4 p-6 border-b bg-white">
-          <div className="bg-gray-50 rounded-2xl p-5">
-            <p className="text-sm text-gray-500">Cupos totales</p>
-            <p className="text-3xl font-bold text-[#0f6b6b]">
-              {resumenGeneral.cuposTotales}
-            </p>
-          </div>
-
-          <div className="bg-red-50 rounded-2xl p-5">
-            <p className="text-sm text-gray-500">Ocupados</p>
-            <p className="text-3xl font-bold text-red-700">
-              {resumenGeneral.ocupadosTotales}
-            </p>
-          </div>
-
-          <div className="bg-green-50 rounded-2xl p-5">
-            <p className="text-sm text-gray-500">Disponibles</p>
-            <p className="text-3xl font-bold text-green-700">
-              {resumenGeneral.disponiblesTotales}
-            </p>
-          </div>
-        </div>
-
-        <div className="grid md:grid-cols-4 gap-4 p-6 border-b bg-gray-50">
-          <div className="bg-white rounded-xl p-4 border">
-            <p className="text-sm text-gray-500">Clínicas cargadas</p>
-            <p className="text-2xl font-bold text-[#0f6b6b]">{clinicas.length}</p>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 border">
-            <p className="text-sm text-gray-500">Horarios cargados</p>
-            <p className="text-2xl font-bold text-[#0f6b6b]">{horarios.length}</p>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 border">
-            <p className="text-sm text-gray-500">Cupos diarios cargados</p>
-            <p className="text-2xl font-bold text-[#0f6b6b]">{cuposDiarios.length}</p>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 border">
-            <p className="text-sm text-gray-500">Registros del día</p>
-            <p className="text-2xl font-bold text-[#0f6b6b]">{registros.length}</p>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="p-10 text-center text-gray-600">
-            Cargando cupos...
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse min-w-[900px]">
-              <thead>
-                <tr className="bg-gray-100 text-left">
-                  <th className="p-4 text-lg font-bold">Clínica</th>
-                  {horariosUnicos.map((hora) => (
-                    <th key={hora} className="p-4 text-lg font-bold text-center">
-                      {hora.slice(0, 5)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-
-              <tbody>
-                {clinicas.map((clinica) => (
-                  <tr key={clinica.id} className="border-t border-gray-200">
-                    <td className="p-4 font-medium whitespace-nowrap">
-                      {getClinicaNombre(clinica)}
-                    </td>
-
-                    {horariosUnicos.map((hora) => (
-                      <td key={`${clinica.id}-${hora}`} className="p-4 text-center">
-                        {renderCupo(clinica.id, hora)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {!loading && clinicas.length === 0 && (
-              <div className="p-8 text-center text-gray-500">
-                No se encontraron clínicas.
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {modalHorario && detalleHorario && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
-            <div className="flex justify-between items-center gap-4 mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-[#0f6b6b]">
-                  {detalleHorario.clinicaNombre} — {detalleHorario.hora.slice(0, 5)}
-                </h2>
-                <p className="text-gray-600 mt-1">Fecha: {fecha}</p>
-              </div>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/admin"
+                className="rounded-2xl bg-white px-5 py-3 font-semibold text-[#026A6A] shadow-lg transition hover:opacity-90"
+              >
+                Volver al dashboard
+              </Link>
 
               <button
-                onClick={cerrarDetalleHorario}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                onClick={() => cargarBase()}
+                className="rounded-2xl bg-[#F28C38] px-5 py-3 font-semibold text-white shadow-lg transition hover:opacity-90"
               >
-                ×
+                Actualizar
+              </button>
+
+              <button
+                onClick={sincronizarCupos}
+                disabled={sincronizando}
+                className="rounded-2xl bg-white/15 px-5 py-3 font-semibold text-white shadow-lg ring-1 ring-white/20 transition hover:bg-white/20 disabled:opacity-60"
+              >
+                {sincronizando ? "Sincronizando..." : "Sincronizar cupos"}
               </button>
             </div>
+          </div>
+        </section>
 
-            {registrosDetalle.length === 0 ? (
-              <div className="rounded-2xl border bg-gray-50 p-6 text-center text-gray-600">
-                No hay registros en este horario.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {registrosDetalle.map((registro) => (
-                  <div
-                    key={registro.id}
-                    className="border rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
-                  >
-                    <div className="space-y-1">
-                      <p className="font-bold text-[#0f6b6b]">
-                        {registro.nombre_animal || "Sin nombre"} — {registro.codigo}
-                      </p>
-                      <p className="text-sm text-gray-700">
-                        <b>Responsable:</b> {registro.nombre_responsable || "-"}
-                      </p>
-                      <p className="text-sm text-gray-700">
-                        <b>Teléfono:</b> {registro.telefono || "-"}
-                      </p>
-                      <p className="text-sm text-gray-700">
-                        <b>Especie:</b> {registro.especie || "-"}{" "}
-                        <span className="mx-1">•</span>
-                        <b>Sexo:</b> {registro.sexo || "-"}
-                      </p>
+        <section className="mt-5 rounded-[28px] bg-white/95 p-4 shadow-xl">
+          <div className="grid gap-3 lg:grid-cols-[180px_auto_auto_1fr_auto_auto]">
+            <input
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              className="rounded-2xl border border-zinc-200 px-4 py-3 outline-none"
+            />
+
+            <button
+              onClick={() => cambiarFecha(-1)}
+              className="rounded-2xl border border-zinc-200 px-4 py-3 font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              ← Día anterior
+            </button>
+
+            <button
+              onClick={() => setFecha(getLocalDateString())}
+              className="rounded-2xl border border-zinc-200 px-4 py-3 font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Hoy
+            </button>
+
+            <input
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar clínica, zona o dirección..."
+              className="rounded-2xl border border-zinc-200 px-4 py-3 outline-none"
+            />
+
+            <select
+              value={zonaFiltro}
+              onChange={(e) => setZonaFiltro(e.target.value)}
+              className="rounded-2xl border border-zinc-200 px-4 py-3 outline-none"
+            >
+              {zonas.map((zona) => (
+                <option key={zona} value={zona}>
+                  {zona}
+                </option>
+              ))}
+            </select>
+
+            <label className="flex items-center gap-2 rounded-2xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700">
+              <input
+                type="checkbox"
+                checked={mostrarSoloConDisponibles}
+                onChange={(e) => setMostrarSoloConDisponibles(e.target.checked)}
+              />
+              Solo con disponibles
+            </label>
+          </div>
+        </section>
+
+        <section className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            { label: "Cupos totales", value: resumen.cuposTotales, color: "text-[#026A6A]" },
+            { label: "Ocupados", value: resumen.ocupadosTotales, color: "text-[#DB7A12]" },
+            { label: "Disponibles", value: resumen.disponiblesTotales, color: "text-emerald-600" },
+            { label: "Registros del día", value: resumen.registrosDia, color: "text-zinc-900" },
+          ].map((item) => (
+            <div key={item.label} className="rounded-[28px] bg-white p-5 shadow-xl">
+              <p className="text-sm text-zinc-500">{item.label}</p>
+              <p className={`mt-2 text-5xl font-black ${item.color}`}>{item.value}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="mt-5 flex flex-wrap gap-2">
+          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
+            Disponible
+          </span>
+          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+            Pocos cupos
+          </span>
+          <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-800">
+            Lleno
+          </span>
+          <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-800">
+            Fecha específica configurable
+          </span>
+        </section>
+
+        <section className="mt-5">
+          {loading ? (
+            <div className="rounded-[28px] bg-white p-10 text-center text-zinc-500 shadow-xl">
+              Cargando panel...
+            </div>
+          ) : clinicasTarjetas.length === 0 ? (
+            <div className="rounded-[28px] bg-white p-10 text-center text-zinc-500 shadow-xl">
+              No hay clínicas visibles con esos filtros para esta fecha.
+            </div>
+          ) : (
+            <div className="grid gap-5">
+              {clinicasTarjetas.map(({ clinica, slots, cupos, ocupados, disponibles }) => (
+                <div key={clinica.id} className="rounded-[30px] bg-white p-5 shadow-xl">
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div>
+                      <h2 className="text-3xl font-black text-zinc-900">{getClinicaNombre(clinica)}</h2>
+                      <div className="mt-2 flex flex-wrap gap-2 text-sm">
+                        <span className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700">
+                          {clinica.zona || "Sin zona"}
+                        </span>
+                        <span className="rounded-full bg-cyan-100 px-3 py-1 text-cyan-800">Cupos: {cupos}</span>
+                        <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">
+                          Ocupados: {ocupados}
+                        </span>
+                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-800">
+                          Disponibles: {disponibles}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex flex-col md:items-end gap-3">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold w-fit ${clasesBadgeEstado(
-                          registro.estado_cita
-                        )}`}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => abrirGestion(clinica)}
+                        className="rounded-2xl bg-[#026A6A] px-4 py-3 text-sm font-semibold text-white hover:opacity-95"
                       >
-                        {labelEstado(registro.estado_cita)}
-                      </span>
-
-                      <Link
-                        href={`/admin/registros`}
-                        className="bg-[#0f6b6b] hover:bg-[#0c5555] text-white px-4 py-2 rounded-xl text-sm font-semibold w-fit"
-                      >
-                        Ver registros
-                      </Link>
+                        Gestionar horarios
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
 
-            <div className="mt-6 flex justify-end">
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
+                    {slots.length === 0 ? (
+                      <div className="rounded-3xl border border-dashed border-zinc-200 p-6 text-sm text-zinc-500">
+                        Esta clínica no tiene cupos visibles para el día seleccionado.
+                      </div>
+                    ) : (
+                      slots.map((slot) => (
+                        <button
+                          key={`${clinica.id}-${slot.hora}`}
+                          onClick={() => abrirDetalle(clinica.id, slot.hora)}
+                          className={`rounded-[24px] border p-4 text-left shadow-sm transition ${slotClasses(slot.tone)}`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-2xl font-black">{slot.hora.slice(0, 5)}</p>
+                              <p className="mt-1 text-xs font-semibold uppercase tracking-wide opacity-80">
+                                {slot.ocupados} / {slot.cupos} ocupados
+                              </p>
+                            </div>
+                            {obtenerCupoFechaEspecifica(clinica.id, slot.horario.id, fecha) ? (
+                              <span className="rounded-full bg-sky-100 px-2 py-1 text-[10px] font-bold text-sky-800">
+                                ESPECIAL
+                              </span>
+                            ) : null}
+                          </div>
+
+                          <div className="mt-5">
+                            <p className="text-sm font-semibold">Disponibles: {slot.disponibles}</p>
+                            <p className="mt-2 text-xs opacity-75">Clic para ver detalle y acciones rápidas</p>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {detalleAbierto && detalleSeleccionado && detalleInfo ? (
+        <div className="fixed inset-0 z-50 bg-black/40 p-4 backdrop-blur-[2px]">
+          <div className="mx-auto max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-[32px] bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-zinc-100 px-6 py-5">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#026A6A]">Detalle del horario</p>
+                <h3 className="mt-2 text-4xl font-black text-zinc-900">{detalleSeleccionado.clinicaNombre}</h3>
+                <p className="mt-2 text-sm text-zinc-500">
+                  {formatFecha(fecha)} · {detalleSeleccionado.hora.slice(0, 5)}
+                </p>
+              </div>
+
               <button
-                onClick={cerrarDetalleHorario}
-                className="px-5 py-3 rounded-xl bg-gray-200 text-gray-800 font-semibold"
+                onClick={cerrarDetalle}
+                className="rounded-full bg-zinc-100 px-4 py-3 text-zinc-600 hover:bg-zinc-200"
               >
-                Cerrar
+                ✕
               </button>
+            </div>
+
+            <div className="grid gap-6 overflow-y-auto p-6 lg:grid-cols-[1.2fr_1fr] max-h-[calc(92vh-110px)]">
+              <div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    { label: "Cupos", value: detalleInfo.cupos },
+                    { label: "Ocupados", value: detalleInfo.ocupados },
+                    { label: "Disponibles", value: detalleInfo.disponibles },
+                  ].map((item) => (
+                    <div key={item.label} className="rounded-[24px] bg-zinc-50 p-4">
+                      <p className="text-xs font-bold uppercase text-zinc-500">{item.label}</p>
+                      <p className="mt-2 text-4xl font-black text-zinc-900">{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-5 rounded-[28px] border border-zinc-100 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h4 className="text-lg font-black text-zinc-900">Pacientes del horario</h4>
+                    {detalleInfo.especialFecha ? (
+                      <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-800">
+                        Fecha específica activa
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {detalleInfo.registros.length === 0 ? (
+                      <div className="rounded-3xl bg-zinc-50 p-5 text-sm text-zinc-500">
+                        No hay registros en este horario.
+                      </div>
+                    ) : (
+                      detalleInfo.registros.map((registro) => (
+                        <div key={registro.id} className="rounded-[24px] border border-zinc-200 p-4 shadow-sm">
+                          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div>
+                              <p className="text-2xl font-bold text-zinc-900">{registro.nombre_animal || "Sin nombre"}</p>
+                              <p className="mt-1 text-xs text-zinc-500">
+                                Código: {registro.codigo || "—"} · {registro.especie || "—"} · {registro.sexo || "—"} ·{" "}
+                                {registro.tipo_animal || "—"}
+                              </p>
+                              <p className="mt-3 text-sm text-zinc-700">Responsable: {getResponsable(registro)}</p>
+                              <p className="mt-1 text-sm text-zinc-700">Tel: {getTelefono(registro)}</p>
+                            </div>
+
+                            <div className="flex flex-col items-start gap-2 md:items-end">
+                              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${clasesEstado(registro.estado_cita)}`}>
+                                {labelEstado(registro.estado_cita)}
+                              </span>
+                              <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600">
+                                Hora registro: {(registro.hora || detalleSeleccionado.hora || "").slice(0, 5)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-[28px] border border-zinc-100 p-4">
+                  <h4 className="text-lg font-black text-zinc-900">Acciones rápidas del día</h4>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    Para ajustar solamente esta fecha visible sin tocar toda la semana.
+                  </p>
+
+                  <div className="mt-4 space-y-3">
+                    <button
+                      onClick={() => {
+                        const valor = window.prompt("Nuevo cupo para esta fecha:", String(detalleInfo.cupos))
+                        if (valor === null) return
+                        actualizarCupoDelDia(detalleSeleccionado.clinicaId, detalleSeleccionado.horarioId, Number(valor))
+                      }}
+                      className="w-full rounded-2xl bg-[#026A6A] px-4 py-3 font-semibold text-white hover:opacity-95"
+                    >
+                      Editar cupo del día
+                    </button>
+
+                    <button
+                      onClick={() => restaurarBaseDelDia(detalleSeleccionado.clinicaId, detalleSeleccionado.horarioId)}
+                      className="w-full rounded-2xl border border-zinc-200 px-4 py-3 font-semibold text-zinc-700 hover:bg-zinc-50"
+                    >
+                      Restaurar base
+                    </button>
+
+                    <button
+                      onClick={() => ocultarHoy(detalleSeleccionado.clinicaId, detalleSeleccionado.horarioId)}
+                      className="w-full rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 font-semibold text-rose-700 hover:bg-rose-100"
+                    >
+                      Ocultar hoy
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rounded-[28px] border border-zinc-100 p-4">
+                  <h4 className="text-lg font-black text-zinc-900">Fecha específica</h4>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    Ejemplo: esta viernes a las 07:00 subir de 10 a 30 solo para ese día.
+                  </p>
+
+                  <div className="mt-4 grid gap-3">
+                    <input
+                      id="fecha-especifica-input"
+                      type="date"
+                      defaultValue={fecha}
+                      className="rounded-2xl border border-zinc-200 px-4 py-3 outline-none"
+                    />
+                    <input
+                      id="fecha-especifica-cupo"
+                      type="number"
+                      min={0}
+                      defaultValue={String(detalleInfo.cupos)}
+                      className="rounded-2xl border border-zinc-200 px-4 py-3 outline-none"
+                    />
+
+                    <button
+                      onClick={() => {
+                        const fechaInput = document.getElementById("fecha-especifica-input") as HTMLInputElement | null
+                        const cupoInput = document.getElementById("fecha-especifica-cupo") as HTMLInputElement | null
+                        guardarFechaEspecifica(
+                          detalleSeleccionado.clinicaId,
+                          detalleSeleccionado.horarioId,
+                          fechaInput?.value || "",
+                          Number(cupoInput?.value || 0)
+                        )
+                      }}
+                      className="rounded-2xl bg-[#F28C38] px-4 py-3 font-semibold text-white hover:opacity-95"
+                    >
+                      Guardar fecha específica
+                    </button>
+
+                    {detalleInfo.especialFecha ? (
+                      <button
+                        onClick={() =>
+                          eliminarFechaEspecifica(
+                            detalleSeleccionado.clinicaId,
+                            detalleSeleccionado.horarioId,
+                            detalleInfo.especialFecha!.fecha
+                          )
+                        }
+                        className="rounded-2xl border border-zinc-200 px-4 py-3 font-semibold text-zinc-700 hover:bg-zinc-50"
+                      >
+                        Eliminar especial de la fecha visible
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
+
+      {gestionAbierta && clinicaGestion ? (
+        <div className="fixed inset-0 z-50 bg-black/40 p-4 backdrop-blur-[2px]">
+          <div className="mx-auto max-h-[94vh] w-full max-w-6xl overflow-hidden rounded-[32px] bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-zinc-100 px-6 py-5">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#026A6A]">Gestión ejecutiva</p>
+                <h3 className="mt-2 text-4xl font-black text-zinc-900">{getClinicaNombre(clinicaGestion)}</h3>
+                <p className="mt-2 text-sm text-zinc-500">
+                  Aquí puedes ajustar el horario base y también un cupo especial por fecha puntual.
+                </p>
+              </div>
+
+              <button
+                onClick={cerrarGestion}
+                className="rounded-full bg-zinc-100 px-4 py-3 text-zinc-600 hover:bg-zinc-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="max-h-[calc(94vh-110px)] overflow-y-auto p-6">
+              <div className="rounded-[28px] bg-zinc-50 p-4">
+                <h4 className="text-lg font-black text-zinc-900">Añadir nuevo horario</h4>
+                <div className="mt-4 grid gap-3 md:grid-cols-[180px_180px_auto]">
+                  <input
+                    type="time"
+                    value={nuevoHorarioHora}
+                    onChange={(e) => setNuevoHorarioHora(e.target.value)}
+                    className="rounded-2xl border border-zinc-200 px-4 py-3 outline-none"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    value={nuevoHorarioCupo}
+                    onChange={(e) => setNuevoHorarioCupo(e.target.value)}
+                    className="rounded-2xl border border-zinc-200 px-4 py-3 outline-none"
+                  />
+                  <button
+                    onClick={agregarHorarioEnPanel}
+                    className="rounded-2xl bg-[#026A6A] px-4 py-3 font-semibold text-white hover:opacity-95"
+                  >
+                    Añadir horario
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                {horariosClinicaGestion.length === 0 ? (
+                  <div className="rounded-[28px] border border-dashed border-zinc-200 p-6 text-zinc-500">
+                    Esta clínica aún no tiene horarios.
+                  </div>
+                ) : (
+                  horariosClinicaGestion.map((horario) => {
+                    const fechasEspecialesHorario = cuposEspecialesFecha
+                      .filter((item) => item.clinica_id === clinicaGestion.id && item.horario_id === horario.id)
+                      .sort((a, b) => a.fecha.localeCompare(b.fecha))
+
+                    return (
+                      <HorarioEditorCard
+                        key={horario.id}
+                        horario={horario}
+                        fechasEspeciales={fechasEspecialesHorario}
+                        editando={editandoHorarioId === horario.id}
+                        loading={guardandoHorario}
+                        onStartEdit={() => setEditandoHorarioId(horario.id)}
+                        onCancelEdit={() => setEditandoHorarioId(null)}
+                        onSave={guardarHorarioBase}
+                        onHideBase={ocultarBase}
+                        onSaveSpecial={(fechaTarget, cupos) =>
+                          guardarFechaEspecifica(clinicaGestion.id, horario.id, fechaTarget, cupos)
+                        }
+                        onDeleteSpecial={(fechaTarget) =>
+                          eliminarFechaEspecifica(clinicaGestion.id, horario.id, fechaTarget)
+                        }
+                      />
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </main>
+  )
+}
+
+function HorarioEditorCard({
+  horario,
+  fechasEspeciales,
+  editando,
+  loading,
+  onStartEdit,
+  onCancelEdit,
+  onSave,
+  onHideBase,
+  onSaveSpecial,
+  onDeleteSpecial,
+}: {
+  horario: Horario
+  fechasEspeciales: CupoEspecialFecha[]
+  editando: boolean
+  loading: boolean
+  onStartEdit: () => void
+  onCancelEdit: () => void
+  onSave: (horarioId: string, nuevaHora: string, nuevoCupo: number) => Promise<void>
+  onHideBase: (horarioId: string) => Promise<void>
+  onSaveSpecial: (fecha: string, cupos: number) => Promise<void>
+  onDeleteSpecial: (fecha: string) => Promise<void>
+}) {
+  const [horaEdit, setHoraEdit] = useState(normalizarHoraParaInput(getHorarioHora(horario)))
+  const [cupoEdit, setCupoEdit] = useState(String(getHorarioCupos(horario)))
+  const [fechaEspecial, setFechaEspecial] = useState(getLocalDateString())
+  const [cupoEspecial, setCupoEspecial] = useState(String(getHorarioCupos(horario)))
+
+  useEffect(() => {
+    setHoraEdit(normalizarHoraParaInput(getHorarioHora(horario)))
+    setCupoEdit(String(getHorarioCupos(horario)))
+  }, [horario.id, horario.hora, horario.cupos_maximos])
+
+  return (
+    <div className="rounded-[28px] border border-zinc-200 p-4 shadow-sm">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h5 className="text-2xl font-black text-zinc-900">{getHorarioHora(horario).slice(0, 5)}</h5>
+            <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
+              Base: {getHorarioCupos(horario)}
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-zinc-500">
+            Usa “fecha específica” para subir o bajar solo un día puntual sin tocar toda la semana.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {!editando ? (
+            <>
+              <button
+                onClick={onStartEdit}
+                className="rounded-2xl bg-[#026A6A] px-4 py-3 text-sm font-semibold text-white hover:opacity-95"
+              >
+                Editar base
+              </button>
+              <button
+                onClick={() => onHideBase(horario.id)}
+                className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 hover:bg-rose-100"
+              >
+                Ocultar base
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => onSave(horario.id, horaEdit, Number(cupoEdit))}
+                disabled={loading}
+                className="rounded-2xl bg-[#F28C38] px-4 py-3 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-60"
+              >
+                Guardar base
+              </button>
+              <button
+                onClick={onCancelEdit}
+                className="rounded-2xl border border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+              >
+                Cancelar
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {editando ? (
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <input
+            type="time"
+            value={horaEdit}
+            onChange={(e) => setHoraEdit(e.target.value)}
+            className="rounded-2xl border border-zinc-200 px-4 py-3 outline-none"
+          />
+          <input
+            type="number"
+            min={0}
+            value={cupoEdit}
+            onChange={(e) => setCupoEdit(e.target.value)}
+            className="rounded-2xl border border-zinc-200 px-4 py-3 outline-none"
+          />
+        </div>
+      ) : null}
+
+      <div className="mt-5 rounded-[24px] bg-zinc-50 p-4">
+        <h6 className="text-base font-black text-zinc-900">Configurar fecha específica</h6>
+        <div className="mt-3 grid gap-3 md:grid-cols-[1fr_180px_auto]">
+          <input
+            type="date"
+            value={fechaEspecial}
+            onChange={(e) => setFechaEspecial(e.target.value)}
+            className="rounded-2xl border border-zinc-200 px-4 py-3 outline-none"
+          />
+          <input
+            type="number"
+            min={0}
+            value={cupoEspecial}
+            onChange={(e) => setCupoEspecial(e.target.value)}
+            className="rounded-2xl border border-zinc-200 px-4 py-3 outline-none"
+          />
+          <button
+            onClick={() => onSaveSpecial(fechaEspecial, Number(cupoEspecial))}
+            className="rounded-2xl bg-sky-600 px-4 py-3 font-semibold text-white hover:opacity-95"
+          >
+            Guardar fecha
+          </button>
+        </div>
+
+        {fechasEspeciales.length > 0 ? (
+          <div className="mt-4 space-y-2">
+            {fechasEspeciales.map((item) => (
+              <div
+                key={`${item.horario_id}-${item.fecha}`}
+                className="flex flex-col gap-2 rounded-2xl border border-sky-200 bg-white p-3 md:flex-row md:items-center md:justify-between"
+              >
+                <div>
+                  <p className="font-semibold text-zinc-900">{formatFecha(item.fecha)}</p>
+                  <p className="text-sm text-zinc-500">Cupo especial: {item.cupos}</p>
+                </div>
+
+                <button
+                  onClick={() => onDeleteSpecial(item.fecha)}
+                  className="rounded-2xl border border-zinc-200 px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+                >
+                  Eliminar
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-zinc-500">Sin fechas específicas todavía.</p>
+        )}
+      </div>
     </div>
   )
 }

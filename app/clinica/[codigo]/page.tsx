@@ -97,11 +97,23 @@ export default function PacienteClinica() {
     }
   }, [codigoLimpo])
 
+  function normalizarTexto(valor: string | null | undefined) {
+    return (valor || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/_/g, " ")
+      .replace(/\s+/g, " ")
+  }
+
+  const estadoFinal = normalizarTexto(registro?.estado_clinica)
+
   const finalizado =
-    registro?.estado_clinica === "Apto" ||
-    registro?.estado_clinica === "Rechazado" ||
-    registro?.estado_clinica === "Fallecido" ||
-    registro?.estado_clinica === "No Show"
+    estadoFinal === "APTO" ||
+    estadoFinal === "RECHAZADO" ||
+    estadoFinal === "FALLECIDO" ||
+    estadoFinal === "NO SHOW"
 
   function volverClinica() {
     setTimeout(() => {
@@ -112,11 +124,23 @@ export default function PacienteClinica() {
   async function marcarApto() {
     if (finalizado || procesando || !registro?.id) return
 
+    const clinicaId = localStorage.getItem("clinica_id")
+    if (!clinicaId) {
+      alert("Sesión clínica no encontrada")
+      return
+    }
+
     setProcesando(true)
 
-    const { error } = await supabase.rpc("marcar_apto_clinica", {
-      p_registro_id: registro.id,
-    })
+    const { error } = await supabase
+      .from("registros")
+      .update({
+        estado_clinica: "APTO",
+        estado_cita: "Realizado",
+        clinica_id: clinicaId,
+        fecha_cirugia_realizada: new Date().toISOString(),
+      })
+      .eq("id", registro.id)
 
     if (error) {
       console.log("Error marcando APTO:", error)
@@ -125,8 +149,8 @@ export default function PacienteClinica() {
       return
     }
 
-    alert("Paciente marcado como REALIZADO")
     localStorage.setItem("rugimos_update_resumen", Date.now().toString())
+    alert("Paciente marcado como APTO")
     volverClinica()
   }
 
@@ -158,8 +182,8 @@ export default function PacienteClinica() {
       return
     }
 
-    alert("Paciente marcado como RECHAZADO")
     localStorage.setItem("rugimos_update_resumen", Date.now().toString())
+    alert("Paciente marcado como RECHAZADO")
     volverClinica()
   }
 
@@ -179,7 +203,6 @@ export default function PacienteClinica() {
     setCargandoHorarios(true)
     setHorarioSeleccionado("")
 
-    // 1. horarios configurados da clínica
     const { data: horariosData, error: horariosError } = await supabase
       .from("horarios_clinica")
       .select("id, hora, cupos_maximos")
@@ -201,7 +224,6 @@ export default function PacienteClinica() {
       return
     }
 
-    // 2. registros já programados para essa clínica e essa data
     const { data: registrosFecha, error: registrosError } = await supabase
       .from("registros")
       .select("id, hora, estado_clinica, fecha_programada")
@@ -215,20 +237,18 @@ export default function PacienteClinica() {
       return
     }
 
-    // 3. contar ocupados por hora
     const ocupadosPorHora: Record<string, number> = {}
 
     ;(registrosFecha || []).forEach((r: any) => {
       const hora = r.hora || ""
       if (!hora) return
 
-      const estado = (r.estado_clinica || "").trim().toLowerCase()
+      const estado = normalizarTexto(r.estado_clinica)
 
-      // estos estados no deben ocupar cupo
       if (
-        estado === "rechazado" ||
-        estado === "fallecido" ||
-        estado === "no show"
+        estado === "RECHAZADO" ||
+        estado === "FALLECIDO" ||
+        estado === "NO SHOW"
       ) {
         return
       }
@@ -236,7 +256,6 @@ export default function PacienteClinica() {
       ocupadosPorHora[hora] = (ocupadosPorHora[hora] || 0) + 1
     })
 
-    // 4. construir horarios disponibles
     const horariosDisponiblesFinal = horarios
       .map((h: any) => {
         const cupos = Number(h.cupos_maximos || 0)
@@ -296,7 +315,6 @@ export default function PacienteClinica() {
     setProcesando(true)
 
     try {
-      // liberar cupo anterior si existe
       if (registro?.fecha_programada && registro?.hora) {
         const { data: horarioAnterior } = await supabase
           .from("horarios_clinica")
@@ -325,7 +343,6 @@ export default function PacienteClinica() {
         }
       }
 
-      // ocupar nuevo cupo (creándolo si no existe)
       let { data: nuevoCupo, error: nuevoCupoError } = await supabase
         .from("cupos_diarios")
         .select("id, cupos, ocupados")
@@ -341,7 +358,6 @@ export default function PacienteClinica() {
         return
       }
 
-      // si no existe, crearlo usando cupos_maximos del horario
       if (!nuevoCupo) {
         const { data: horarioData, error: horarioError } = await supabase
           .from("horarios_clinica")
@@ -398,7 +414,6 @@ export default function PacienteClinica() {
         return
       }
 
-      // actualizar registro
       const { error: errorRegistro } = await supabase
         .from("registros")
         .update({
@@ -408,6 +423,7 @@ export default function PacienteClinica() {
           fecha_reprogramacion: new Date().toISOString(),
           fecha_programada: fechaReprogramada,
           hora: horarioElegido.hora,
+          clinica_id: clinicaId,
         })
         .eq("codigo", codigoLimpo)
 
@@ -418,8 +434,8 @@ export default function PacienteClinica() {
         return
       }
 
-      alert("Cirugía reprogramada correctamente")
       localStorage.setItem("rugimos_update_resumen", Date.now().toString())
+      alert("Cirugía reprogramada correctamente")
       setModalReprogramar(false)
       volverClinica()
     } catch (error) {
@@ -430,14 +446,14 @@ export default function PacienteClinica() {
   }
 
   function colorEstado() {
-    if (!registro?.estado_clinica) return "bg-yellow-500"
+    const estado = normalizarTexto(registro?.estado_clinica)
 
-    if (registro.estado_clinica === "Pendiente") return "bg-yellow-500"
-    if (registro.estado_clinica === "Apto") return "bg-green-600"
-    if (registro.estado_clinica === "Rechazado") return "bg-red-600"
-    if (registro.estado_clinica === "Reprogramado") return "bg-orange-500"
-    if (registro.estado_clinica === "No Show") return "bg-gray-700"
-    if (registro.estado_clinica === "Fallecido") return "bg-black"
+    if (!estado || estado === "PENDIENTE") return "bg-yellow-500"
+    if (estado === "APTO") return "bg-green-600"
+    if (estado === "RECHAZADO" || estado === "NO APTO") return "bg-red-600"
+    if (estado === "REPROGRAMADO") return "bg-orange-500"
+    if (estado === "NO SHOW") return "bg-gray-700"
+    if (estado === "FALLECIDO") return "bg-black"
 
     return "bg-gray-400"
   }
@@ -468,25 +484,20 @@ export default function PacienteClinica() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0F6D6A] flex items-center justify-center p-8">
+    <div className="min-h-screen bg-[#0F6D6A] flex items-center justify-center p-4 md:p-8">
       <div className="w-full max-w-4xl space-y-6">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-white">Paciente {registro.codigo}</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-white">Paciente {registro.codigo}</h1>
         </div>
 
         <div className="flex justify-center">
-          <span
-            className={`${colorEstado()} text-white px-6 py-2 rounded-full text-lg font-bold shadow-md`}
-          >
+          <span className={`${colorEstado()} text-white px-6 py-2 rounded-full text-lg font-bold shadow-md`}>
             {registro.estado_clinica || "Pendiente"}
           </span>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-6">
-          <h2 className="text-xl font-bold text-[#0F6D6A] mb-4">
-            Datos del Responsable
-          </h2>
-
+          <h2 className="text-xl font-bold text-[#0F6D6A] mb-4">Datos del Responsable</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
             <p><b>Nombre:</b> {registro.nombre_responsable}</p>
             <p><b>Teléfono:</b> {registro.telefono}</p>
@@ -496,25 +507,82 @@ export default function PacienteClinica() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-6">
-          <h2 className="text-xl font-bold text-[#0F6D6A] mb-4">
-            Datos del Animal
-          </h2>
+  <h2 className="text-xl font-bold text-[#0F6D6A] mb-4">
+    Datos del Animal
+  </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
-            <p><b>Nombre:</b> {registro.nombre_animal}</p>
-            <p><b>Especie:</b> {registro.especie}</p>
-            <p><b>Sexo:</b> {registro.sexo}</p>
-            <p><b>Edad:</b> {registro.edad}</p>
-            <p><b>Peso:</b> {registro.peso}</p>
-            <p><b>Tipo:</b> {registro.tipo_animal}</p>
-          </div>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
+
+    <p><b>Nombre:</b> {registro.nombre_animal}</p>
+    <p><b>Especie:</b> {registro.especie}</p>
+    <p><b>Sexo:</b> {registro.sexo}</p>
+    <p><b>Edad:</b> {registro.edad}</p>
+    <p><b>Peso:</b> {registro.peso}</p>
+    <p><b>Tipo:</b> {registro.tipo_animal}</p>
+
+    {/* NUEVOS CAMPOS */}
+    <p>
+      <b>Tamaño:</b>{" "}
+      {registro.tamano || "No registrado"}
+    </p>
+
+    <p>
+      <b>Vacunado:</b>{" "}
+      {registro.vacunado ? "Sí" : "No"}
+    </p>
+
+    <p>
+      <b>Desparasitado:</b>{" "}
+      {registro.desparasitado ? "Sí" : "No"}
+    </p>
+  </div>
+
+  {/* =========================
+      ALERTAS MÉDICAS
+  ========================= */}
+
+  {(registro.requiere_valoracion_prequirurgica ||
+    registro.peso_bajo ||
+    registro.menor_4_meses) && (
+
+    <div className="mt-5 space-y-3">
+
+      {/* ⚠️ VALORACIÓN */}
+      {registro.requiere_valoracion_prequirurgica && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <p className="font-bold">⚠️ Requiere valoración</p>
+          <p>
+            Paciente con condición que requiere evaluación prequirúrgica.
+          </p>
         </div>
+      )}
+
+      {/* ⛔ PESO BAJO */}
+      {registro.peso_bajo && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <p className="font-bold">⛔ Peso bajo</p>
+          <p>
+            Paciente con peso menor a 700 g. Evaluar antes de proceder.
+          </p>
+        </div>
+      )}
+
+      {/* ⛔ MENOR DE EDAD */}
+      {registro.menor_4_meses && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <p className="font-bold">⛔ No apto por edad</p>
+          <p>
+            Paciente menor de 4 meses. No puede ser intervenido.
+          </p>
+        </div>
+      )}
+
+    </div>
+  )}
+</div>
 
         <div className="bg-white rounded-2xl shadow-xl p-6">
-          <h2 className="text-xl font-bold text-[#0F6D6A] mb-4">
-            Datos de la Cirugía
-          </h2>
-
+          <h2 className="text-xl font-bold text-[#0F6D6A] mb-4">Datos de la Cirugía</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700 text-lg">
             <p><b>Fecha:</b> {registro.fecha_programada || "No asignada"}</p>
             <p><b>Hora asignada:</b> {registro.hora || "No asignada"}</p>
@@ -522,9 +590,7 @@ export default function PacienteClinica() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-6">
-          <h2 className="text-xl font-bold text-[#0F6D6A] mb-6 text-center">
-            Fotos del Registro
-          </h2>
+          <h2 className="text-xl font-bold text-[#0F6D6A] mb-6 text-center">Fotos del Registro</h2>
 
           <div className="flex justify-center gap-6 flex-wrap">
             {registro.foto_frente && (
@@ -556,11 +622,11 @@ export default function PacienteClinica() {
           </div>
         </div>
 
-        <div className="flex justify-center gap-6 pt-6 flex-wrap">
+        <div className="flex justify-center gap-4 pt-4 flex-wrap">
           <button
             onClick={marcarApto}
             disabled={finalizado || procesando}
-            className={`px-10 py-4 rounded-xl font-bold text-lg shadow-md transition ${
+            className={`px-8 py-4 rounded-xl font-bold text-lg shadow-md transition ${
               finalizado || procesando
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-green-600 hover:bg-green-700 text-white"
@@ -572,7 +638,7 @@ export default function PacienteClinica() {
           <button
             onClick={marcarNoApto}
             disabled={finalizado || procesando}
-            className={`px-10 py-4 rounded-xl font-bold text-lg shadow-md transition ${
+            className={`px-8 py-4 rounded-xl font-bold text-lg shadow-md transition ${
               finalizado || procesando
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-red-600 hover:bg-red-700 text-white"
@@ -584,7 +650,7 @@ export default function PacienteClinica() {
           <button
             onClick={abrirModalReprogramar}
             disabled={finalizado || procesando}
-            className={`px-10 py-4 rounded-xl font-bold text-lg shadow-md transition ${
+            className={`px-8 py-4 rounded-xl font-bold text-lg shadow-md transition ${
               finalizado || procesando
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-orange-500 hover:bg-orange-600 text-white"
