@@ -31,6 +31,8 @@ type Registro = {
   estado_clinica: string | null
   recordatorio_24h_enviado: boolean | null
   agradecimiento_enviado: boolean | null
+  seguimiento_7d_enviado?: boolean | null
+  seguimiento_7d_respondido?: boolean | null
 }
 
 type Clinica = {
@@ -46,7 +48,11 @@ type Clinica = {
 type PendingItem = {
   id: string
   registro_id: string
-  tipo_mensaje: "confirmacion_cupo" | "recordatorio_24h" | "agradecimiento_postcirugia"
+  tipo_mensaje:
+    | "confirmacion_cupo"
+    | "recordatorio_24h"
+    | "agradecimiento_postcirugia"
+    | "seguimiento_7d"
   telefono: string | null
   nombre_animal: string | null
   codigo: string | null
@@ -81,6 +87,7 @@ function traducirTipo(tipo: string) {
   if (tipo === "confirmacion_cupo") return "Confirmación de cupo"
   if (tipo === "recordatorio_24h") return "Recordatorio 24h"
   if (tipo === "agradecimiento_postcirugia") return "Agradecimiento"
+  if (tipo === "seguimiento_7d") return "Seguimiento 7 días"
   return tipo
 }
 
@@ -105,7 +112,15 @@ function colorTipo(tipo: string) {
     return "bg-[#FFF4E8] text-[#b85722]"
   }
 
-  return "bg-[#F3F0FF] text-[#6b46c1]"
+  if (tipo === "agradecimiento_postcirugia") {
+    return "bg-[#F3F0FF] text-[#6b46c1]"
+  }
+
+  if (tipo === "seguimiento_7d") {
+    return "bg-[#E8F0FF] text-[#1d4ed8]"
+  }
+
+  return "bg-gray-100 text-gray-700"
 }
 
 function getLocalDateString(offsetDays = 0) {
@@ -191,6 +206,18 @@ function construirMensajeDesdeLog(log: WhatsappLog) {
       "🐶 *Mascota*\n" + (vars["1"] || "-") + "\n\n" +
       "📌 *Código*\n" + (vars["2"] || "-") + "\n\n" +
       "Gracias por apoyar la esterilización responsable."
+    )
+  }
+
+  if (log.tipo_mensaje === "seguimiento_7d") {
+    return (
+      "🐾 *FUNDACIÓN RUGIMOS* 🐾\n\n" +
+      "Hola 😊\n" +
+      "Esperamos que *" + (vars["1"] || extra?.nombre_animal || "su mascota") + "* se encuentre muy bien luego de su esterilización.\n\n" +
+      "Nos ayudaría mucho que complete esta breve encuesta de seguimiento postoperatorio.\n\n" +
+      "📌 *Código*\n" + (vars["2"] || extra?.codigo || "-") + "\n\n" +
+      "🔗 *Encuesta*\n" + (vars["3"] || extra?.link || "-") + "\n\n" +
+      "Muchas gracias por su apoyo y confianza 💚"
     )
   }
 
@@ -280,13 +307,16 @@ export default function AdminWhatsappPage() {
     setLoading(true)
 
     const manana = getLocalDateString(1)
+    const hoy = new Date()
 
     const [
       { data: registrosProgramados, error: errProgramados },
       { data: registrosRecordatorio, error: errRecordatorio },
       { data: registrosAgradecimiento, error: errAgradecimiento },
+      { data: registrosSeguimiento, error: errSeguimiento },
       { data: clinicasData, error: errClinicas },
       { data: logsConfirmacionData, error: errLogsConfirmacion },
+      { data: logsSeguimientoData, error: errLogsSeguimiento },
     ] = await Promise.all([
       supabase
         .from("registros")
@@ -294,6 +324,7 @@ export default function AdminWhatsappPage() {
           id,
           codigo,
           nombre_animal,
+          nombre_responsable,
           telefono,
           clinica_id,
           fecha_programada,
@@ -302,7 +333,9 @@ export default function AdminWhatsappPage() {
           estado_cita,
           estado_clinica,
           recordatorio_24h_enviado,
-          agradecimiento_enviado
+          agradecimiento_enviado,
+          seguimiento_7d_enviado,
+          seguimiento_7d_respondido
         `)
         .eq("estado_cita", "Programado")
         .limit(500),
@@ -313,6 +346,7 @@ export default function AdminWhatsappPage() {
           id,
           codigo,
           nombre_animal,
+          nombre_responsable,
           telefono,
           clinica_id,
           fecha_programada,
@@ -321,7 +355,9 @@ export default function AdminWhatsappPage() {
           estado_cita,
           estado_clinica,
           recordatorio_24h_enviado,
-          agradecimiento_enviado
+          agradecimiento_enviado,
+          seguimiento_7d_enviado,
+          seguimiento_7d_respondido
         `)
         .eq("fecha_programada", manana)
         .eq("estado_cita", "Programado")
@@ -334,6 +370,7 @@ export default function AdminWhatsappPage() {
           id,
           codigo,
           nombre_animal,
+          nombre_responsable,
           telefono,
           clinica_id,
           fecha_programada,
@@ -342,10 +379,36 @@ export default function AdminWhatsappPage() {
           estado_cita,
           estado_clinica,
           recordatorio_24h_enviado,
-          agradecimiento_enviado
+          agradecimiento_enviado,
+          seguimiento_7d_enviado,
+          seguimiento_7d_respondido
         `)
         .eq("estado_cita", "Realizado")
         .eq("agradecimiento_enviado", false)
+        .limit(500),
+
+      supabase
+        .from("registros")
+        .select(`
+          id,
+          codigo,
+          nombre_animal,
+          nombre_responsable,
+          telefono,
+          clinica_id,
+          fecha_programada,
+          fecha_cirugia_realizada,
+          hora,
+          estado_cita,
+          estado_clinica,
+          recordatorio_24h_enviado,
+          agradecimiento_enviado,
+          seguimiento_7d_enviado,
+          seguimiento_7d_respondido
+        `)
+        .not("fecha_cirugia_realizada", "is", null)
+        .eq("seguimiento_7d_enviado", false)
+        .eq("seguimiento_7d_respondido", false)
         .limit(500),
 
       supabase
@@ -360,15 +423,33 @@ export default function AdminWhatsappPage() {
         .eq("estado", "enviado")
         .not("registro_id", "is", null)
         .limit(2000),
+
+      supabase
+        .from("whatsapp_logs")
+        .select("registro_id,tipo_mensaje,estado")
+        .eq("tipo_mensaje", "seguimiento_7d")
+        .eq("estado", "enviado")
+        .not("registro_id", "is", null)
+        .limit(2000),
     ])
 
-    if (errProgramados || errRecordatorio || errAgradecimiento || errClinicas || errLogsConfirmacion) {
+    if (
+      errProgramados ||
+      errRecordatorio ||
+      errAgradecimiento ||
+      errSeguimiento ||
+      errClinicas ||
+      errLogsConfirmacion ||
+      errLogsSeguimiento
+    ) {
       console.error("Error cargando pendientes:", {
         errProgramados,
         errRecordatorio,
         errAgradecimiento,
+        errSeguimiento,
         errClinicas,
         errLogsConfirmacion,
+        errLogsSeguimiento,
       })
       setPendientes([])
       setTotalPendientes(0)
@@ -381,6 +462,12 @@ export default function AdminWhatsappPage() {
 
     const confirmadosSet = new Set(
       (logsConfirmacionData || [])
+        .map((l: any) => l.registro_id)
+        .filter(Boolean)
+    )
+
+    const seguimientosSet = new Set(
+      (logsSeguimientoData || [])
         .map((l: any) => l.registro_id)
         .filter(Boolean)
     )
@@ -444,6 +531,36 @@ export default function AdminWhatsappPage() {
         registro: reg,
         clinica,
       })
+    }
+
+    for (const reg of (registrosSeguimiento || []) as Registro[]) {
+      if (seguimientosSet.has(reg.id)) continue
+      if (!reg.fecha_cirugia_realizada) continue
+
+      const fechaCirugia = new Date(reg.fecha_cirugia_realizada)
+      if (Number.isNaN(fechaCirugia.getTime())) continue
+
+      const diffDias =
+        (hoy.getTime() - fechaCirugia.getTime()) / (1000 * 60 * 60 * 24)
+
+      if (diffDias >= 7) {
+        const clinica = reg.clinica_id ? clinicasMap.get(reg.clinica_id) || null : null
+
+        items.push({
+          id: `seguimiento-${reg.id}`,
+          registro_id: reg.id,
+          tipo_mensaje: "seguimiento_7d",
+          telefono: reg.telefono,
+          nombre_animal: reg.nombre_animal,
+          codigo: reg.codigo,
+          clinica_nombre: clinica?.nome || "Clínica asignada",
+          fecha_ref: reg.fecha_cirugia_realizada,
+          hora_ref: null,
+          motivo: "Seguimiento postoperatorio 7 días",
+          registro: reg,
+          clinica,
+        })
+      }
     }
 
     const texto = busqueda.trim().toLowerCase()
@@ -516,6 +633,7 @@ export default function AdminWhatsappPage() {
     const agradecimientos = logs.filter(
       (l) => l.tipo_mensaje === "agradecimiento_postcirugia"
     ).length
+    const seguimientos = logs.filter((l) => l.tipo_mensaje === "seguimiento_7d").length
 
     return {
       enviados,
@@ -524,6 +642,7 @@ export default function AdminWhatsappPage() {
       confirmaciones,
       recordatorios,
       agradecimientos,
+      seguimientos,
     }
   }, [logs])
 
@@ -546,6 +665,7 @@ export default function AdminWhatsappPage() {
         log.error_texto || "",
         log.payload?.variables?.["1"] || "",
         log.payload?.variables?.["2"] || "",
+        log.payload?.variables?.["3"] || "",
         log.payload?.payload_extra?.codigo || "",
         log.payload?.payload_extra?.clinica_nombre || "",
       ]
@@ -641,25 +761,44 @@ export default function AdminWhatsappPage() {
 
       if (item.tipo_mensaje === "confirmacion_cupo") {
         const linkMapa = String(item.clinica?.maps_url || "").trim()
-const linkQR = `https://fundacion-rugimos.vercel.app/paciente/${item.codigo || ""}`
+        const linkQR = `https://fundacion-rugimos.vercel.app/paciente/${item.codigo || ""}`
 
-body.variables = {
-  "1": String(item.codigo || ""),
-  "2": String(item.nombre_animal || ""),
-  "3": String(item.clinica?.nome || "Clínica asignada"),
-  "4": String(item.clinica?.endereco || ""),
-  "5": String(formatearFechaSolo(item.registro.fecha_programada) || ""),
-  "6": String(item.registro.hora || ""),
-  "7": String(item.clinica?.telefono || "No disponible"),
-  "8": String(linkMapa || ""),
-  "9": String(linkQR || ""),
-}
+        body.variables = {
+          "1": String(item.codigo || ""),
+          "2": String(item.nombre_animal || ""),
+          "3": String(item.clinica?.nome || "Clínica asignada"),
+          "4": String(item.clinica?.endereco || ""),
+          "5": String(formatearFechaSolo(item.registro.fecha_programada) || ""),
+          "6": String(item.registro.hora || ""),
+          "7": String(item.clinica?.telefono || "No disponible"),
+          "8": String(linkMapa || ""),
+          "9": String(linkQR || ""),
+        }
+
         body.payload_extra = {
           clinica_id: item.registro.clinica_id,
           clinica_nombre: item.clinica?.nome || "Clínica asignada",
           fecha_programada: item.registro.fecha_programada,
           hora_programada: item.registro.hora,
           codigo: item.codigo || "",
+        }
+      }
+
+      if (item.tipo_mensaje === "seguimiento_7d") {
+        const linkSeguimiento = `https://fundacion-rugimos.vercel.app/seguimiento/${item.codigo || ""}`
+
+        body.variables = {
+          "1": item.nombre_animal || "",
+          "2": item.codigo || "",
+          "3": linkSeguimiento,
+        }
+
+        body.payload_extra = {
+          tipo: "seguimiento_7d",
+          codigo: item.codigo || "",
+          nombre_animal: item.nombre_animal || "",
+          link: linkSeguimiento,
+          fecha_cirugia_realizada: item.registro.fecha_cirugia_realizada,
         }
       }
 
@@ -692,8 +831,16 @@ body.variables = {
           .eq("id", item.registro_id)
       }
 
+      if (item.tipo_mensaje === "seguimiento_7d") {
+        await supabase
+          .from("registros")
+          .update({ seguimiento_7d_enviado: true })
+          .eq("id", item.registro_id)
+      }
+
       alert("Mensaje enviado correctamente.")
       await cargarPendientes()
+      await cargarLogs()
     } catch (error) {
       console.error(error)
       alert("Ocurrió un error al enviar.")
@@ -740,7 +887,7 @@ body.variables = {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-4 mb-6">
           <div className="bg-white rounded-3xl p-5 shadow-xl">
             <p className="text-sm text-gray-500">Enviados</p>
             <p className="text-3xl font-bold text-green-600">{resumen.enviados}</p>
@@ -769,6 +916,11 @@ body.variables = {
           <div className="bg-white rounded-3xl p-5 shadow-xl">
             <p className="text-sm text-gray-500">Agradecimientos</p>
             <p className="text-3xl font-bold text-[#6b46c1]">{resumen.agradecimientos}</p>
+          </div>
+
+          <div className="bg-white rounded-3xl p-5 shadow-xl">
+            <p className="text-sm text-gray-500">Seguimientos 7d</p>
+            <p className="text-3xl font-bold text-[#1d4ed8]">{resumen.seguimientos}</p>
           </div>
         </div>
 
@@ -823,6 +975,7 @@ body.variables = {
               <option value="confirmacion_cupo">Confirmación de cupo</option>
               <option value="recordatorio_24h">Recordatorio 24h</option>
               <option value="agradecimiento_postcirugia">Agradecimiento</option>
+              <option value="seguimiento_7d">Seguimiento 7 días</option>
             </select>
 
             <select
@@ -884,11 +1037,14 @@ body.variables = {
                       const mascota =
                         log.payload?.variables?.["2"] ||
                         log.payload?.payload_extra?.mascota ||
+                        log.payload?.payload_extra?.nombre_animal ||
+                        log.payload?.variables?.["1"] ||
                         "-"
 
                       const codigo =
                         log.payload?.payload_extra?.codigo ||
                         log.payload?.variables?.["1"] ||
+                        log.payload?.variables?.["2"] ||
                         "-"
 
                       const clinica =
@@ -1007,7 +1163,7 @@ body.variables = {
                       </td>
 
                       <td className="px-4 py-4 text-gray-700 whitespace-nowrap">
-                        {item.tipo_mensaje === "agradecimiento_postcirugia"
+                        {item.tipo_mensaje === "agradecimiento_postcirugia" || item.tipo_mensaje === "seguimiento_7d"
                           ? formatearFecha(item.fecha_ref)
                           : formatearFechaSolo(item.fecha_ref)}
                       </td>
