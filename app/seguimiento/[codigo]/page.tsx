@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 import { useParams } from "next/navigation"
 import { supabase } from "@/lib/supabase"
@@ -7,7 +8,8 @@ import { supabase } from "@/lib/supabase"
 type RegistroData = {
   id: string
   codigo: string
-  nombre_completo: string | null
+  nombre_responsable?: string | null
+  nombre_completo?: string | null
   telefono: string | null
   celular?: string | null
   nombre_animal: string | null
@@ -18,11 +20,17 @@ type RegistroData = {
   clinicas?: {
     id?: string | null
     nome?: string | null
-    nombre?: string | null
+    zona?: string | null
     endereco?: string | null
-    direccion?: string | null
+    telefono?: string | null
+    maps_url?: string | null
   } | null
   seguimiento_7d_respondido?: boolean | null
+}
+
+type SolicitudFallback = {
+  nombre_completo: string | null
+  celular: string | null
 }
 
 type FormDataType = {
@@ -94,72 +102,16 @@ function formatDate(dateStr?: string | null) {
   })
 }
 
-function SectionCard({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string
-  subtitle?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section className="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm md:p-6">
-      <div className="mb-5">
-        <h2 className="text-xl font-semibold text-slate-900 md:text-2xl">{title}</h2>
-        {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
-      </div>
-      {children}
-    </section>
-  )
-}
+function normalizePhoneDisplay(phone?: string | null) {
+  if (!phone) return ""
+  const cleaned = String(phone).replace(/\D/g, "")
+  if (!cleaned) return ""
 
-function RadioCard({
-  selected,
-  label,
-  onClick,
-}: {
-  selected: boolean
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-2xl border px-4 py-3 text-left text-sm font-medium transition ${
-        selected
-          ? "border-emerald-600 bg-emerald-50 text-emerald-800 shadow-sm"
-          : "border-slate-200 bg-white text-slate-700 hover:border-emerald-200 hover:bg-emerald-50/50"
-      }`}
-    >
-      {label}
-    </button>
-  )
-}
+  if (cleaned.startsWith("591") && cleaned.length > 3) {
+    return cleaned.slice(3)
+  }
 
-function CheckboxCard({
-  checked,
-  label,
-  onClick,
-}: {
-  checked: boolean
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-2xl border px-4 py-3 text-left text-sm font-medium transition ${
-        checked
-          ? "border-emerald-600 bg-emerald-50 text-emerald-800 shadow-sm"
-          : "border-slate-200 bg-white text-slate-700 hover:border-emerald-200 hover:bg-emerald-50/50"
-      }`}
-    >
-      {label}
-    </button>
-  )
+  return cleaned
 }
 
 export default function SeguimientoPage() {
@@ -188,6 +140,7 @@ export default function SeguimientoPage() {
         .select(`
           id,
           codigo,
+          nombre_responsable,
           nombre_completo,
           telefono,
           celular,
@@ -227,11 +180,12 @@ export default function SeguimientoPage() {
       }
 
       let clinicaData: RegistroData["clinicas"] = null
+      let solicitudData: SolicitudFallback | null = null
 
       if (registroData.clinica_id) {
         const { data: clinica, error: clinicaError } = await supabase
           .from("clinicas")
-          .select("id, nome, nombre, endereco, direccion")
+          .select("id, nome, zona, endereco, telefono, maps_url")
           .eq("id", registroData.clinica_id)
           .maybeSingle()
 
@@ -239,6 +193,28 @@ export default function SeguimientoPage() {
           console.error("Erro buscando clínica:", clinicaError)
         } else {
           clinicaData = clinica
+        }
+      }
+
+      const tutorVacio =
+        !registroData.nombre_responsable?.trim() &&
+        !registroData.nombre_completo?.trim()
+
+      const telefonoVacio =
+        !registroData.telefono?.trim() &&
+        !registroData.celular?.trim()
+
+      if (tutorVacio || telefonoVacio) {
+        const { data: solicitud, error: solicitudError } = await supabase
+          .from("solicitudes")
+          .select("nombre_completo, celular")
+          .eq("codigo", codigoNormalizado)
+          .maybeSingle()
+
+        if (solicitudError) {
+          console.error("Erro buscando solicitud fallback:", solicitudError)
+        } else {
+          solicitudData = solicitud
         }
       }
 
@@ -254,8 +230,17 @@ export default function SeguimientoPage() {
 
       if (!mounted) return
 
-      const tutorNombre = registroData.nombre_completo || ""
-      const tutorTelefono = registroData.telefono || registroData.celular || ""
+      const tutorNombre =
+        registroData.nombre_responsable?.trim() ||
+        registroData.nombre_completo?.trim() ||
+        solicitudData?.nombre_completo?.trim() ||
+        ""
+
+      const tutorTelefono =
+        normalizePhoneDisplay(registroData.telefono) ||
+        normalizePhoneDisplay(registroData.celular) ||
+        normalizePhoneDisplay(solicitudData?.celular) ||
+        ""
 
       setRegistro({
         ...registroData,
@@ -285,11 +270,12 @@ export default function SeguimientoPage() {
   }, [codigo])
 
   const clinicName = useMemo(() => {
-    return registro?.clinicas?.nome || registro?.clinicas?.nombre || "Clínica asignada"
+    if (!registro?.clinicas?.nome) return "Clínica atendida"
+    return `${registro.clinicas.nome}${registro.clinicas.zona ? ` - ${registro.clinicas.zona}` : ""}`
   }, [registro])
 
   const clinicAddress = useMemo(() => {
-    return registro?.clinicas?.endereco || registro?.clinicas?.direccion || ""
+    return registro?.clinicas?.endereco || ""
   }, [registro])
 
   function setField<K extends keyof FormDataType>(field: K, value: FormDataType[K]) {
@@ -430,9 +416,19 @@ export default function SeguimientoPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-teal-50 px-4 py-10">
-        <div className="mx-auto max-w-3xl rounded-3xl border border-emerald-100 bg-white p-8 shadow-sm">
-          <p className="text-center text-slate-600">Cargando seguimiento...</p>
+      <main className="min-h-screen bg-[#0d7a75] px-4 py-8 md:px-6">
+        <div className="mx-auto max-w-3xl rounded-[34px] bg-[#f4f4f4] p-8 shadow-2xl">
+          <div className="text-center">
+            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#0b6665]/70">
+              Fundación Rugimos 🐾
+            </p>
+            <h1 className="text-3xl font-bold text-[#0b6665] md:text-4xl">
+              Cargando seguimiento...
+            </h1>
+            <p className="mt-4 text-slate-600">
+              Estamos preparando la información del paciente.
+            </p>
+          </div>
         </div>
       </main>
     )
@@ -440,13 +436,32 @@ export default function SeguimientoPage() {
 
   if (error && !registro) {
     return (
-      <main className="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-teal-50 px-4 py-10">
-        <div className="mx-auto max-w-3xl rounded-3xl border border-red-100 bg-white p-8 shadow-sm">
-          <div className="mb-4 text-center text-5xl">🐾</div>
-          <h1 className="text-center text-2xl font-semibold text-slate-900">
-            Seguimiento no disponible
-          </h1>
-          <p className="mt-3 text-center text-slate-600">{error}</p>
+      <main className="min-h-screen bg-[#0d7a75] px-4 py-8 md:px-6">
+        <div className="mx-auto max-w-3xl rounded-[34px] bg-[#f4f4f4] p-8 shadow-2xl">
+          <div className="text-center">
+            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#0b6665]/70">
+              Fundación Rugimos 🐾
+            </p>
+            <h1 className="text-3xl font-bold leading-tight text-[#c65b24] md:text-4xl">
+              Seguimiento no disponible
+            </h1>
+            <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-600">
+              {error}
+            </p>
+          </div>
+
+          <div className="mx-auto mt-6 max-w-2xl rounded-2xl border border-[#f0d6c2] bg-[#fff3e9] p-4 text-sm text-[#8f4f24]">
+            Verifique que el enlace sea correcto o comuníquese con Fundación Rugimos si necesita ayuda.
+          </div>
+
+          <div className="mt-8 flex justify-center">
+            <Link
+              href="/"
+              className="rounded-full bg-[#d9d9d9] px-6 py-3 text-sm font-semibold text-slate-700 transition hover:scale-[1.02]"
+            >
+              Volver
+            </Link>
+          </div>
         </div>
       </main>
     )
@@ -454,362 +469,541 @@ export default function SeguimientoPage() {
 
   if (success || alreadyAnswered) {
     return (
-      <main className="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-teal-50 px-4 py-10">
-        <div className="mx-auto max-w-3xl rounded-3xl border border-emerald-100 bg-white p-8 shadow-sm">
-          <div className="mb-4 text-center text-5xl">💚</div>
-          <h1 className="text-center text-3xl font-semibold text-slate-900">
-            ¡Muchas gracias!
-          </h1>
-          <p className="mt-4 text-center text-slate-600">
-            {success
-              ? "Su respuesta fue enviada correctamente. Nos ayuda muchísimo a mejorar la atención y el seguimiento de nuestras campañas."
-              : "Este seguimiento ya fue respondido anteriormente. Gracias por su colaboración."}
-          </p>
+      <main className="min-h-screen bg-[#0d7a75] px-4 py-8 md:px-6">
+        <div className="mx-auto max-w-3xl rounded-[34px] bg-[#f4f4f4] p-8 shadow-2xl">
+          <div className="text-center">
+            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#0b6665]/70">
+              Fundación Rugimos 🐾
+            </p>
 
-          {registro ? (
-            <div className="mt-8 rounded-2xl bg-emerald-50 p-5">
-              <p className="text-sm text-slate-600">
-                <span className="font-semibold text-slate-800">Código:</span> {registro.codigo}
-              </p>
-              <p className="mt-1 text-sm text-slate-600">
-                <span className="font-semibold text-slate-800">Mascota:</span>{" "}
-                {registro.nombre_animal || "-"}
-              </p>
-              <p className="mt-1 text-sm text-slate-600">
-                <span className="font-semibold text-slate-800">Clínica:</span> {clinicName}
-              </p>
+            <h1 className="text-3xl font-bold leading-tight text-[#43a047] md:text-4xl">
+              {success ? "✅ Seguimiento enviado correctamente" : "💚 Seguimiento ya respondido"}
+            </h1>
+
+            <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-slate-600">
+              {success
+                ? "Gracias por responder. Su información nos ayuda a verificar la recuperación del paciente y mejorar la calidad de nuestras campañas."
+                : "Este seguimiento ya fue respondido anteriormente. Gracias por su colaboración y por apoyar el cuidado responsable."}
+            </p>
+
+            <div className="mx-auto mt-6 max-w-2xl rounded-2xl border border-[#d1e7dd] bg-[#e8f5e9] p-4 text-sm text-[#2e7d32]">
+              <p className="font-semibold">📌 Información del caso</p>
+              <div className="mt-2 grid gap-2 text-left sm:grid-cols-2">
+                <p>
+                  <span className="font-semibold">Responsable:</span>{" "}
+                  {registro?.nombre_completo || "-"}
+                </p>
+                <p>
+                  <span className="font-semibold">Mascota:</span> {registro?.nombre_animal || "-"}
+                </p>
+                <p>
+                  <span className="font-semibold">Clínica:</span> {clinicName}
+                </p>
+                <p>
+                  <span className="font-semibold">Fecha cirugía:</span>{" "}
+                  {formatDate(registro?.fecha_cirugia_realizada)}
+                </p>
+              </div>
             </div>
-          ) : null}
+          </div>
+
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link
+              href="/"
+              className="rounded-full bg-[#d9d9d9] px-6 py-3 text-sm font-semibold text-slate-700 transition hover:scale-[1.02]"
+            >
+              Volver
+            </Link>
+          </div>
         </div>
       </main>
     )
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-teal-50 px-4 py-6 md:py-10">
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-6 overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
-          <div className="h-2 bg-gradient-to-r from-teal-700 via-emerald-600 to-teal-500" />
-          <div className="p-6 md:p-8">
-            <div className="mb-5 text-center">
-              <div className="mb-3 text-4xl">🐾</div>
-              <h1 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
-                FUNDACIÓN RUGIMOS
-              </h1>
-              <p className="mt-2 text-lg text-emerald-700">Seguimiento Post Esterilización</p>
-            </div>
+    <main className="min-h-screen bg-[#0d7a75] px-4 py-8 md:px-6">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-6 text-center text-white">
+          <p className="mb-2 text-sm font-semibold uppercase tracking-[0.22em] text-white/75">
+            🐾 FUNDACIÓN RUGIMOS 🐾
+          </p>
 
-            <p className="text-slate-700">
-              Gracias por confiar en nosotros. Esta breve encuesta nos ayuda a verificar el
-              bienestar de su mascota y mejorar continuamente la calidad de nuestras campañas.
-            </p>
+          <h1 className="text-4xl font-bold md:text-5xl">Seguimiento Post Esterilización</h1>
 
-            <div className="mt-5 grid gap-3 rounded-2xl bg-emerald-50 p-4 text-sm text-slate-700 md:grid-cols-2">
-              <div>
-                <span className="font-semibold text-slate-900">Tutor/a:</span>{" "}
-                {registro?.nombre_completo || "-"}
-              </div>
-              <div>
-                <span className="font-semibold text-slate-900">Mascota:</span>{" "}
-                {registro?.nombre_animal || "-"}
-              </div>
-              <div>
-                <span className="font-semibold text-slate-900">Clínica:</span> {clinicName}
-              </div>
-              <div>
-                <span className="font-semibold text-slate-900">Fecha cirugía:</span>{" "}
-                {formatDate(registro?.fecha_cirugia_realizada)}
-              </div>
-              {clinicAddress ? (
-                <div className="md:col-span-2">
-                  <span className="font-semibold text-slate-900">Dirección:</span> {clinicAddress}
-                </div>
-              ) : null}
-            </div>
+          <p className="mx-auto mt-4 max-w-3xl text-sm text-white/85 md:text-base">
+            Gracias por confiar en nosotros. Esta breve encuesta nos ayuda a verificar el bienestar
+            de su mascota y mejorar continuamente la calidad de nuestras campañas.
+          </p>
 
-            <div className="mt-4 flex flex-wrap gap-3 text-sm text-slate-500">
-              <span>⏱️ Tiempo estimado: 1 minuto</span>
-              <span>🔒 Información confidencial</span>
-            </div>
+          <div className="mx-auto mt-6 max-w-2xl overflow-hidden rounded-full bg-white/15">
+            <div className="h-2 w-full bg-[#f47c3c]" />
           </div>
         </div>
 
+        <div className="mb-6 rounded-[24px] border border-[#f0d6c2] bg-[#fff3e9] p-4 text-sm text-[#8f4f24] shadow-md">
+          <p className="font-semibold">Importante</p>
+          <p className="mt-1">
+            Esta encuesta es confidencial y solo toma 1 minuto. Su respuesta nos ayuda a detectar
+            oportunamente cualquier problema y mejorar la atención brindada.
+          </p>
+        </div>
+
+        <div className="mb-6 rounded-[28px] bg-[#f4f4f4] p-6 shadow-lg">
+          <h2 className="mb-5 text-xl font-bold text-[#0b6665]">Resumen del caso</h2>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <InfoPill label="Responsable" value={registro?.nombre_completo || "-"} />
+            <InfoPill label="Mascota" value={registro?.nombre_animal || "-"} />
+            <InfoPill label="Clínica atendida" value={clinicName} />
+            <InfoPill label="Fecha cirugía" value={formatDate(registro?.fecha_cirugia_realizada)} />
+          </div>
+
+          {clinicAddress ? (
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+              <span className="font-semibold text-[#0b6665]">Dirección de la clínica:</span>{" "}
+              {clinicAddress}
+            </div>
+          ) : null}
+        </div>
+
         {error ? (
-          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
+          <div className="mb-6 rounded-[24px] border border-[#f3c6c6] bg-[#fff1f1] p-4 text-sm text-[#b53a3a] shadow-md">
+            <p className="font-semibold">Revisar</p>
+            <p className="mt-1">{error}</p>
           </div>
         ) : null}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <SectionCard title="Datos de contacto" subtitle="Para identificar correctamente la respuesta.">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Nombre</label>
-                <input
-                  type="text"
+          <Section title="Datos de contacto">
+            <div className="mb-4 rounded-2xl border border-[#d1e7dd] bg-[#eef8f7] px-4 py-3 text-sm text-[#0b6665]">
+              Estos datos ya fueron precargados automáticamente. Puede corregirlos si lo desea.
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field label="Nombre del responsable">
+                <Input
                   value={form.respondido_por}
                   onChange={(e) => setField("respondido_por", e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-emerald-500"
-                  placeholder="Su nombre"
+                  placeholder="Nombre del responsable"
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Teléfono</label>
-                <input
-                  type="text"
+              <Field label="Teléfono del responsable">
+                <Input
                   value={form.telefono}
                   onChange={(e) => setField("telefono", e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-emerald-500"
-                  placeholder="Opcional"
+                  placeholder="Teléfono"
                 />
-              </div>
+              </Field>
             </div>
-          </SectionCard>
+          </Section>
 
-          <SectionCard title="1. Estado general de la mascota">
-            <div className="grid gap-3 sm:grid-cols-2">
-              {["Excelente", "Bueno", "Regular", "Malo"].map((item) => (
-                <RadioCard
+          <Section title="1. Estado general de la mascota">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {(["Excelente", "Bueno", "Regular", "Malo"] as const).map((item) => (
+                <ChoicePill
                   key={item}
                   label={item}
                   selected={form.estado_general === item}
-                  onClick={() => setField("estado_general", item as FormDataType["estado_general"])}
+                  onClick={() => setField("estado_general", item)}
                 />
               ))}
             </div>
-          </SectionCard>
+          </Section>
 
-          <SectionCard title="2. ¿Ha presentado alguno de estos signos?">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <CheckboxCard
+          <Section title="2. ¿Ha presentado alguno de estos signos?">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <CheckCard
                 label="Decaimiento"
                 checked={form.decaimiento}
                 onClick={() => toggleSign("decaimiento")}
               />
-              <CheckboxCard
+              <CheckCard
                 label="Falta de apetito"
                 checked={form.falta_apetito}
                 onClick={() => toggleSign("falta_apetito")}
               />
-              <CheckboxCard
+              <CheckCard
                 label="Vómitos"
                 checked={form.vomitos}
                 onClick={() => toggleSign("vomitos")}
               />
-              <CheckboxCard
+              <CheckCard
                 label="Diarrea"
                 checked={form.diarrea}
                 onClick={() => toggleSign("diarrea")}
               />
-              <div className="sm:col-span-2">
-                <CheckboxCard
-                  label="Ninguno"
-                  checked={form.ninguno_signos}
-                  onClick={toggleNoneSigns}
-                />
-              </div>
+              <CheckCard
+                label="Ninguno"
+                checked={form.ninguno_signos}
+                onClick={toggleNoneSigns}
+              />
             </div>
-          </SectionCard>
+          </Section>
 
-          <SectionCard title="3. Estado de la herida quirúrgica">
-            <div className="space-y-5">
-              {[
-                { key: "enrojecimiento", label: "¿Observa enrojecimiento?" },
-                { key: "inflamacion", label: "¿Observa inflamación?" },
-                { key: "sangrado", label: "¿Hubo sangrado?" },
-                { key: "herida_abierta", label: "¿La herida se abrió?" },
-              ].map((item) => (
-                <div key={item.key}>
-                  <p className="mb-2 text-sm font-medium text-slate-700">{item.label}</p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <RadioCard
-                      label="Sí"
-                      selected={form[item.key as keyof FormDataType] === "Sí"}
-                      onClick={() => setField(item.key as keyof FormDataType, "Sí" as never)}
-                    />
-                    <RadioCard
-                      label="No"
-                      selected={form[item.key as keyof FormDataType] === "No"}
-                      onClick={() => setField(item.key as keyof FormDataType, "No" as never)}
-                    />
-                  </div>
-                </div>
-              ))}
+          <Section title="3. Estado de la herida quirúrgica">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <QuestionBlock
+                label="¿Observa enrojecimiento?"
+                value={form.enrojecimiento}
+                onChange={(value) => setField("enrojecimiento", value)}
+              />
+              <QuestionBlock
+                label="¿Observa inflamación?"
+                value={form.inflamacion}
+                onChange={(value) => setField("inflamacion", value)}
+              />
+              <QuestionBlock
+                label="¿Hubo sangrado?"
+                value={form.sangrado}
+                onChange={(value) => setField("sangrado", value)}
+              />
+              <QuestionBlock
+                label="¿La herida se abrió?"
+                value={form.herida_abierta}
+                onChange={(value) => setField("herida_abierta", value)}
+              />
             </div>
-          </SectionCard>
+          </Section>
 
-          <SectionCard title="4. Complicaciones">
-            <div className="mb-5">
-              <p className="mb-2 text-sm font-medium text-slate-700">
-                ¿Considera que hubo alguna complicación?
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <RadioCard
-                  label="Sí"
-                  selected={form.hubo_complicacion === "Sí"}
-                  onClick={() => setField("hubo_complicacion", "Sí")}
-                />
-                <RadioCard
-                  label="No"
-                  selected={form.hubo_complicacion === "No"}
-                  onClick={() => setField("hubo_complicacion", "No")}
-                />
-              </div>
+          <Section title="4. Complicaciones">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <ChoicePill
+                label="Sí"
+                selected={form.hubo_complicacion === "Sí"}
+                onClick={() => setField("hubo_complicacion", "Sí")}
+              />
+              <ChoicePill
+                label="No"
+                selected={form.hubo_complicacion === "No"}
+                onClick={() => setField("hubo_complicacion", "No")}
+              />
             </div>
 
             {form.hubo_complicacion === "Sí" ? (
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Si marcó “Sí”, por favor describa brevemente:
-                </label>
-                <textarea
-                  value={form.complicacion_descripcion}
-                  onChange={(e) => setField("complicacion_descripcion", e.target.value)}
-                  className="min-h-[120px] w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-emerald-500"
-                  placeholder="Describa la complicación"
-                />
+              <div className="mt-5">
+                <Field label="Si marcó “Sí”, por favor describa brevemente">
+                  <Textarea
+                    value={form.complicacion_descripcion}
+                    onChange={(e) => setField("complicacion_descripcion", e.target.value)}
+                    placeholder="Describa la complicación observada"
+                  />
+                </Field>
               </div>
             ) : null}
-          </SectionCard>
+          </Section>
 
-          <SectionCard title="5. Atención recibida en la clínica">
-            <div className="space-y-5">
-              <div>
-                <p className="mb-2 text-sm font-medium text-slate-700">
-                  ¿Cómo califica la atención recibida?
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {["Muy buena", "Buena", "Regular", "Mala"].map((item) => (
-                    <RadioCard
-                      key={item}
-                      label={item}
-                      selected={form.atencion_clinica === item}
-                      onClick={() =>
-                        setField("atencion_clinica", item as FormDataType["atencion_clinica"])
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
+          <Section title="5. Atención recibida en la clínica">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <ChoiceGroup
+                label="¿Cómo califica la atención recibida?"
+                options={["Muy buena", "Buena", "Regular", "Mala"]}
+                value={form.atencion_clinica}
+                onChange={(value) =>
+                  setField("atencion_clinica", value as FormDataType["atencion_clinica"])
+                }
+              />
 
-              <div>
-                <p className="mb-2 text-sm font-medium text-slate-700">
-                  ¿Le explicaron bien el cuidado postoperatorio?
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {["Sí, claramente", "Más o menos", "No me explicaron"].map((item) => (
-                    <RadioCard
-                      key={item}
-                      label={item}
-                      selected={form.explicaron_postoperatorio === item}
-                      onClick={() =>
-                        setField(
-                          "explicaron_postoperatorio",
-                          item as FormDataType["explicaron_postoperatorio"]
-                        )
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
+              <ChoiceGroup
+                label="¿Le explicaron bien el cuidado postoperatorio?"
+                options={["Sí, claramente", "Más o menos", "No me explicaron"]}
+                value={form.explicaron_postoperatorio}
+                onChange={(value) =>
+                  setField(
+                    "explicaron_postoperatorio",
+                    value as FormDataType["explicaron_postoperatorio"]
+                  )
+                }
+              />
 
-              <div>
-                <p className="mb-2 text-sm font-medium text-slate-700">
-                  ¿Cómo fue el trato del personal?
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {["Excelente", "Bueno", "Regular", "Malo"].map((item) => (
-                    <RadioCard
-                      key={item}
-                      label={item}
-                      selected={form.trato_personal === item}
-                      onClick={() =>
-                        setField("trato_personal", item as FormDataType["trato_personal"])
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
+              <ChoiceGroup
+                label="¿Cómo fue el trato del personal?"
+                options={["Excelente", "Bueno", "Regular", "Malo"]}
+                value={form.trato_personal}
+                onChange={(value) =>
+                  setField("trato_personal", value as FormDataType["trato_personal"])
+                }
+              />
 
-              <div>
-                <p className="mb-2 text-sm font-medium text-slate-700">
-                  ¿Volvería a atenderse en esta clínica?
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {["Sí", "No", "No estoy seguro"].map((item) => (
-                    <RadioCard
-                      key={item}
-                      label={item}
-                      selected={form.volveria_clinica === item}
-                      onClick={() =>
-                        setField("volveria_clinica", item as FormDataType["volveria_clinica"])
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
+              <ChoiceGroup
+                label="¿Volvería a atenderse en esta clínica?"
+                options={["Sí", "No", "No estoy seguro"]}
+                value={form.volveria_clinica}
+                onChange={(value) =>
+                  setField("volveria_clinica", value as FormDataType["volveria_clinica"])
+                }
+              />
             </div>
-          </SectionCard>
+          </Section>
 
-          <SectionCard title="6. Satisfacción general">
-            <p className="mb-3 text-sm text-slate-600">
+          <Section title="6. Satisfacción general">
+            <p className="mb-4 text-sm text-slate-600">
               ¿Qué tan satisfecho está con la atención recibida?
             </p>
-            <div className="flex flex-wrap gap-3">
+
+            <div className="grid grid-cols-5 gap-3 md:max-w-md">
               {[1, 2, 3, 4, 5].map((value) => (
-                <button
+                <ScaleButton
                   key={value}
-                  type="button"
+                  value={value}
+                  selected={form.satisfaccion_general === value}
                   onClick={() =>
                     setField("satisfaccion_general", value as FormDataType["satisfaccion_general"])
                   }
-                  className={`flex h-14 w-14 items-center justify-center rounded-2xl border text-lg font-semibold transition ${
-                    form.satisfaccion_general === value
-                      ? "border-emerald-600 bg-emerald-50 text-emerald-700"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-emerald-200 hover:bg-emerald-50/50"
-                  }`}
-                >
-                  {value}
-                </button>
+                />
               ))}
             </div>
-          </SectionCard>
+          </Section>
 
-          <SectionCard title="7. Comentario final" subtitle="Opcional">
-            <textarea
-              value={form.comentario_final}
-              onChange={(e) => setField("comentario_final", e.target.value)}
-              className="min-h-[140px] w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-emerald-500"
-              placeholder="¿Desea dejarnos algún comentario o sugerencia?"
-            />
-          </SectionCard>
+          <Section title="7. Comentario final">
+            <Field label="Comentario o sugerencia (opcional)">
+              <Textarea
+                value={form.comentario_final}
+                onChange={(e) => setField("comentario_final", e.target.value)}
+                placeholder="Cuéntenos cualquier detalle importante que desee compartir"
+              />
+            </Field>
+          </Section>
 
-          <div className="flex flex-col gap-3 pb-10 sm:flex-row">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-teal-700 to-emerald-600 px-6 py-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {submitting ? "Enviando..." : "Enviar seguimiento"}
-            </button>
+          <div className="rounded-[28px] bg-[#f4f4f4] p-6 shadow-lg">
+            <h2 className="text-center text-2xl font-bold text-[#0b6665]">
+              Confirmación antes de enviar
+            </h2>
 
-            <button
-              type="button"
-              onClick={() =>
-                setForm({
-                  ...initialForm,
-                  respondido_por: registro?.nombre_completo || "",
-                  telefono: registro?.telefono || "",
-                })
-              }
-              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-            >
-              Limpiar formulario
-            </button>
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+              Al enviar este formulario, confirmo que la información proporcionada corresponde al
+              estado actual de la mascota y autorizo su registro para seguimiento interno de
+              Fundación Rugimos.
+            </div>
+
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Link
+                href="/"
+                className="rounded-full bg-[#d9d9d9] px-6 py-3 text-sm font-semibold text-slate-700 transition hover:scale-[1.02]"
+              >
+                Volver
+              </Link>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setForm({
+                    ...initialForm,
+                    respondido_por: registro?.nombre_completo || "",
+                    telefono: registro?.telefono || "",
+                  })
+                }
+                className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-[#0b6665] ring-1 ring-slate-200 transition hover:scale-[1.02]"
+              >
+                Limpiar formulario
+              </button>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="rounded-full bg-[#f47c3c] px-6 py-3 text-sm font-semibold text-white transition hover:scale-[1.02] disabled:opacity-60"
+              >
+                {submitting ? "Enviando..." : "Enviar seguimiento"}
+              </button>
+            </div>
           </div>
         </form>
       </div>
     </main>
+  )
+}
+
+function Section({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="rounded-[28px] bg-[#f4f4f4] p-6 shadow-lg">
+      <h2 className="mb-5 text-xl font-bold text-[#0b6665]">{title}</h2>
+      {children}
+    </section>
+  )
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-semibold text-[#0b6665]">{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  const { className = "", ...rest } = props
+  return (
+    <input
+      {...rest}
+      className={`h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm outline-none transition focus:border-[#0d7a75] ${className}`}
+    />
+  )
+}
+
+function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const { className = "", ...rest } = props
+  return (
+    <textarea
+      {...rest}
+      rows={4}
+      className={`min-h-[120px] w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#0d7a75] ${className}`}
+    />
+  )
+}
+
+function ChoicePill({
+  label,
+  selected,
+  onClick,
+}: {
+  label: string
+  selected: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
+        selected
+          ? "border-[#0d7a75] bg-[#dff3f0] text-[#0b6665] shadow-sm"
+          : "border-slate-200 bg-white text-slate-700 hover:border-[#92ccc6] hover:bg-[#eef8f7]"
+      }`}
+    >
+      {label}
+    </button>
+  )
+}
+
+function CheckCard({
+  label,
+  checked,
+  onClick,
+}: {
+  label: string
+  checked: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${
+        checked
+          ? "border-[#0d7a75] bg-[#dff3f0] text-[#0b6665] shadow-sm"
+          : "border-slate-200 bg-white text-slate-700 hover:border-[#92ccc6] hover:bg-[#eef8f7]"
+      }`}
+    >
+      <span
+        className={`flex h-5 w-5 items-center justify-center rounded-md border text-[11px] ${
+          checked
+            ? "border-[#0d7a75] bg-[#0d7a75] text-white"
+            : "border-slate-300 bg-white text-transparent"
+        }`}
+      >
+        ✓
+      </span>
+      <span className="font-medium">{label}</span>
+    </button>
+  )
+}
+
+function QuestionBlock({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: "Sí" | "No" | ""
+  onChange: (value: "Sí" | "No") => void
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <p className="mb-3 text-sm font-semibold text-[#0b6665]">{label}</p>
+      <div className="grid grid-cols-2 gap-3">
+        <ChoicePill label="Sí" selected={value === "Sí"} onClick={() => onChange("Sí")} />
+        <ChoicePill label="No" selected={value === "No"} onClick={() => onChange("No")} />
+      </div>
+    </div>
+  )
+}
+
+function ChoiceGroup({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: string[]
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <div>
+      <p className="mb-3 text-sm font-semibold text-[#0b6665]">{label}</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {options.map((item) => (
+          <ChoicePill
+            key={item}
+            label={item}
+            selected={value === item}
+            onClick={() => onChange(item)}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ScaleButton({
+  value,
+  selected,
+  onClick,
+}: {
+  value: number
+  selected: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex h-14 items-center justify-center rounded-2xl border text-lg font-bold transition ${
+        selected
+          ? "border-[#f47c3c] bg-[#fff3e9] text-[#c65b24] shadow-sm"
+          : "border-slate-200 bg-white text-slate-700 hover:border-[#f2b48f] hover:bg-[#fff8f3]"
+      }`}
+    >
+      {value}
+    </button>
+  )
+}
+
+function InfoPill({
+  label,
+  value,
+}: {
+  label: string
+  value: string
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#0b6665]/70">{label}</p>
+      <p className="mt-1 text-sm font-medium text-slate-700">{value}</p>
+    </div>
   )
 }

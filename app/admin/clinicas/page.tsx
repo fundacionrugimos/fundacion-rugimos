@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
+import ModalHorariosVoluntariado from "@/components/admin/ModalHorariosVoluntariado"
 
 interface Clinica {
   id: string
@@ -217,6 +218,8 @@ export default function ClinicasPage() {
   const [horarios, setHorarios] = useState<Horario[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [selectedClinica, setSelectedClinica] = useState<Clinica | null>(null)
+  const [modalVoluntariadoOpen, setModalVoluntariadoOpen] = useState(false)
+  const [clinicaVoluntariado, setClinicaVoluntariado] = useState<Clinica | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [filtroTexto, setFiltroTexto] = useState("")
@@ -238,38 +241,39 @@ export default function ClinicasPage() {
   >({})
 
   async function fetchZonas() {
-    const { data, error } = await supabase
-      .from("zonas")
-      .select("nombre")
-      .eq("activa", true)
-      .order("nombre", { ascending: true })
+  try {
+    const res = await fetch("/api/admin/clinicas")
+    const json = await res.json()
 
-    if (error) {
-      console.error(error)
-      return
+    if (!res.ok || !json.ok) {
+      throw new Error(json.error || "Error cargando zonas")
     }
 
-    setZonas((data || []).map((z: any) => z.nombre))
+    setZonas(json.data?.zonas || [])
+  } catch (error) {
+    console.error(error)
   }
+}
 
   async function fetchClinicas() {
-    setLoading(true)
+  setLoading(true)
 
-    const { data, error } = await supabase
-      .from("clinicas")
-      .select("*")
-      .order("nome", { ascending: true })
+  try {
+    const res = await fetch("/api/admin/clinicas")
+    const json = await res.json()
 
-    if (error) {
-      console.error(error)
-      alert("Error cargando clínicas")
-      setLoading(false)
-      return
+    if (!res.ok || !json.ok) {
+      throw new Error(json.error || "Error cargando clínicas")
     }
 
-    setClinicas((data || []) as Clinica[])
+    setClinicas((json.data?.clinicas || []) as Clinica[])
+  } catch (error) {
+    console.error(error)
+    alert("Error cargando clínicas")
+  } finally {
     setLoading(false)
   }
+}
 
   async function fetchHorarios(clinicaId: string) {
     const { data, error } = await supabase
@@ -366,13 +370,18 @@ export default function ClinicasPage() {
     setCuposEspecialesPorHorario({})
     setCuposEspecialesPorFecha({})
 
-    const { data: zonaData } = await supabase
-      .from("zonas")
-      .select("nombre_publico")
-      .eq("nombre", clinica.zona)
-      .maybeSingle()
+    try {
+  const res = await fetch(`/api/admin/zonas/${encodeURIComponent(clinica.zona || "")}`)
+  const json = await res.json()
 
-    setNombrePublicoZona(String(zonaData?.nombre_publico || clinica.zona || ""))
+  if (res.ok && json?.ok) {
+    setNombrePublicoZona(String(json.data?.nombre_publico || clinica.zona || ""))
+  } else {
+    setNombrePublicoZona(String(clinica.zona || ""))
+  }
+} catch {
+  setNombrePublicoZona(String(clinica.zona || ""))
+}
 
     setIsOpen(true)
 
@@ -395,6 +404,11 @@ export default function ClinicasPage() {
     setCuposEspecialesPorHorario({})
     setCuposEspecialesPorFecha({})
   }
+
+  function abrirModalVoluntariado(clinica: Clinica) {
+  setClinicaVoluntariado(clinica)
+  setModalVoluntariadoOpen(true)
+}
 
   async function toggleClinica(id: string, ativa: boolean) {
     if (!confirm("¿Seguro que deseas cambiar el estado de esta clínica?")) return
@@ -1029,6 +1043,7 @@ export default function ClinicasPage() {
       return coincideTexto && coincideZona
     })
   }, [clinicas, filtroTexto, filtroZona])
+  
 
   return (
     <main className="min-h-screen bg-[#026A6A] p-6 md:p-10">
@@ -1220,6 +1235,13 @@ export default function ClinicasPage() {
                   >
                     Editar
                   </button>
+
+                  <button
+  onClick={() => abrirModalVoluntariado(clinica)}
+  className="px-5 py-3 bg-[#F97316] text-white rounded-2xl font-semibold hover:opacity-90"
+>
+  Voluntariado
+</button>
 
                   <button
                     onClick={() => toggleClinica(clinica.id, clinica.ativa)}
@@ -1731,6 +1753,11 @@ export default function ClinicasPage() {
             </div>
           </div>
         )}
+        <ModalHorariosVoluntariado
+  open={modalVoluntariadoOpen}
+  onClose={() => setModalVoluntariadoOpen(false)}
+  clinica={clinicaVoluntariado}
+/>
       </div>
     </main>
   )

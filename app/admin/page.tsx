@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 
@@ -24,8 +23,6 @@ type DashboardCard = {
 }
 
 export default function AdminDashboard() {
-  const router = useRouter()
-
   const [pendentes, setPendentes] = useState(0)
   const [citasHoy, setCitasHoy] = useState(0)
   const [pedidosResumen, setPedidosResumen] = useState<PedidosResumen>({
@@ -54,19 +51,19 @@ export default function AdminDashboard() {
   }
 
   const carregarPendentes = async () => {
-  try {
-    const res = await fetch("/api/solicitudes?pagina=1")
-    const json = await res.json()
+    try {
+      const res = await fetch("/api/solicitudes?pagina=1")
+      const json = await res.json()
 
-    if (!res.ok || !json.ok) {
-      throw new Error(json.error || "Error cargando pendientes")
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || "Error cargando pendientes")
+      }
+
+      setPendentes(json.total || 0)
+    } catch (error) {
+      console.error("Error cargando pendientes:", error)
     }
-
-    setPendentes(json.total || 0)
-  } catch (error) {
-    console.error("Error cargando pendientes:", error)
   }
-}
 
   const carregarCitasHoy = async () => {
     const hoy = getLocalDateString()
@@ -135,6 +132,7 @@ export default function AdminDashboard() {
         icon: "🏥",
         title: "Clínicas",
         description: "Gestionar clínicas y configuración general.",
+        borderVariant: "teal",
       },
       {
         href: "/admin/registros",
@@ -143,13 +141,22 @@ export default function AdminDashboard() {
         description: "Animales registrados y seguimiento clínico.",
       },
       {
+        href: "/admin/seguimientos",
+        icon: "🩺",
+        title: "Seguimientos",
+        description: "Encuestas postoperatorias, respuestas, satisfacción y complicaciones.",
+        highlight: "Ver seguimientos",
+        highlightVariant: "green",
+        borderVariant: "green",
+      },
+      {
         href: "/admin/solicitudes",
         icon: "📨",
         title: "Solicitudes",
         description: "Revisar solicitudes pendientes del público.",
-        highlight:
-          pendentes > 0 ? `Pendientes: ${pendentes}` : "Sin pendientes",
+        highlight: pendentes > 0 ? `Pendientes: ${pendentes}` : "Sin pendientes",
         highlightVariant: pendentes > 0 ? "orange" : "green",
+        borderVariant: pendentes > 0 ? "orange" : "green",
       },
       {
         href: "/admin/cupos",
@@ -165,6 +172,15 @@ export default function AdminDashboard() {
         highlight: `Hoy: ${citasHoy}`,
         highlightVariant: "orange",
         borderVariant: "orange",
+      },
+      {
+        href: "/admin/voluntarios",
+        icon: "🩺",
+        title: "Voluntariados",
+        description: "Postulaciones, asignaciones, horarios y seguimiento del programa.",
+        highlight: "Programa clínico",
+        highlightVariant: "teal",
+        borderVariant: "teal",
       },
       {
         href: "/admin/inventario",
@@ -228,7 +244,7 @@ export default function AdminDashboard() {
                   Panel principal
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm text-white/80 md:text-base">
-                  Sistema administrativo. 
+                  Sistema administrativo central para operación, gestión clínica, seguimiento y control.
                 </p>
               </div>
             </div>
@@ -244,9 +260,9 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {cards.map((card) => (
-            <Link key={card.href} href={card.href}>
+            <Link key={card.href} href={card.href} className="block h-full">
               <div
-                className={`group flex min-h-[210px] flex-col justify-between rounded-[28px] border bg-white p-6 shadow-[0_16px_40px_rgba(0,0,0,0.12)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_22px_50px_rgba(0,0,0,0.16)] ${
+                className={`group flex h-full min-h-[232px] flex-col rounded-[28px] border bg-white p-6 shadow-[0_16px_40px_rgba(0,0,0,0.12)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_22px_50px_rgba(0,0,0,0.16)] ${
                   card.borderVariant === "orange"
                     ? "border-[#F47C3C]/70"
                     : card.borderVariant === "teal"
@@ -256,7 +272,7 @@ export default function AdminDashboard() {
                     : "border-white/70"
                 }`}
               >
-                <div>
+                <div className="flex flex-1 flex-col">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F6FBFB] text-xl ring-1 ring-[#02686A]/10 transition group-hover:scale-105">
@@ -264,32 +280,36 @@ export default function AdminDashboard() {
                       </div>
 
                       <div className="min-w-0">
-                        <h2 className="text-xl font-bold text-[#02686A]">
+                        <h2 className="line-clamp-2 text-xl font-bold leading-tight text-[#02686A]">
                           {card.title}
                         </h2>
-                        <p className="mt-2 text-sm leading-6 text-gray-600">
+                        <p className="mt-2 min-h-[48px] text-sm leading-6 text-gray-600">
                           {card.description}
                         </p>
                       </div>
                     </div>
 
-                    <div className="rounded-full bg-[#F7FAFA] px-3 py-1 text-[11px] font-semibold text-[#02686A] ring-1 ring-[#02686A]/10">
+                    <div className="shrink-0 rounded-full bg-[#F7FAFA] px-3 py-1 text-[11px] font-semibold text-[#02686A] ring-1 ring-[#02686A]/10">
                       Abrir
                     </div>
                   </div>
 
-                  {card.extraLines && card.extraLines.length > 0 && (
-                    <div className="mt-5 grid grid-cols-3 gap-2">
-                      {card.extraLines.map((line) => (
-                        <div
-                          key={line}
-                          className="rounded-2xl bg-[#F8FAFA] px-3 py-3 text-center text-xs font-semibold text-gray-700 ring-1 ring-[#02686A]/8"
-                        >
-                          {line}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="mt-5 min-h-[68px]">
+                    {card.extraLines && card.extraLines.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        {card.extraLines.map((line) => (
+                          <div
+                            key={line}
+                            className="flex min-h-[54px] items-center justify-center rounded-2xl bg-[#F8FAFA] px-3 py-3 text-center text-xs font-semibold text-gray-700 ring-1 ring-[#02686A]/8"
+                          >
+                            {line}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="h-[68px]" />
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-5 flex items-center justify-between gap-3">
